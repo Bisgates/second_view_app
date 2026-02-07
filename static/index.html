@@ -142,6 +142,7 @@
       <button class="toggle-btn active" id="toggleVwap">VWAP</button>
       <button class="toggle-btn active" id="toggleMA">MA</button>
       <button class="toggle-btn" id="toggleClean">Clean</button>
+      <button class="toggle-btn" id="toggleFilter">Hampel</button>
     </div>
     <div class="chart-wrap">
       <div class="ma-legend" id="maLegend"></div>
@@ -204,6 +205,7 @@
     showVwap: true,
     showMA: true,
     useClean: false,
+    spikeFilter: false,
     data: null,
     tz: 'America/New_York',
   };
@@ -342,6 +344,11 @@
   $('toggleClean').addEventListener('click', function() {
     state.useClean = !state.useClean;
     this.classList.toggle('active', state.useClean);
+    loadChart();
+  });
+  $('toggleFilter').addEventListener('click', function() {
+    state.spikeFilter = !state.spikeFilter;
+    this.classList.toggle('active', state.spikeFilter);
     loadChart();
   });
 
@@ -568,6 +575,10 @@
       resolution: state.resolution,
       use_clean: state.useClean,
     });
+    if (state.spikeFilter) {
+      params.set('spike_filter', 'hampel');
+      params.set('spike_window', 3);
+    }
 
     try {
       const data = await fetchJSON(`/api/price/${state.currentDate}/${state.currentSymbol}?${params}`);

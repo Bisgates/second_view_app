@@ -206,6 +206,40 @@ def _compute_ma(values: np.ndarray, times: np.ndarray, period: int) -> list[dict
     return result
 
 
+def _hampel_filter(series: pd.Series, window: int, n_sigma: float = 3.0) -> pd.Series:
+    if window <= 0:
+        return series
+    k = 1.4826  # scale factor for Gaussian distribution
+    win = window * 2 + 1
+    rolling_median = series.rolling(win, center=True).median()
+    mad = (series - rolling_median).abs().rolling(win, center=True).median()
+    threshold = n_sigma * k * mad
+    outlier = (series - rolling_median).abs() > threshold
+    filtered = series.copy()
+    filtered[outlier & rolling_median.notna()] = rolling_median[outlier & rolling_median.notna()]
+    return filtered
+
+
+def _apply_spike_filter(df: pd.DataFrame, method: str, window: int) -> pd.DataFrame:
+    if method != "hampel":
+        return df
+    df = df.copy()
+    for prefix in ("", "clean_"):
+        close_col = f"{prefix}close"
+        if close_col not in df.columns:
+            continue
+        for col in (f"{prefix}open", f"{prefix}high", f"{prefix}low", close_col):
+            if col in df.columns:
+                df[col] = _hampel_filter(df[col].astype(float), window)
+        high_col = f"{prefix}high"
+        low_col = f"{prefix}low"
+        open_col = f"{prefix}open"
+        if high_col in df.columns and low_col in df.columns and open_col in df.columns:
+            df[high_col] = df[[high_col, open_col, close_col]].max(axis=1)
+            df[low_col] = df[[low_col, open_col, close_col]].min(axis=1)
+    return df
+
+
 def _build_volume_bars(
     times: np.ndarray, opens: np.ndarray, closes: np.ndarray, volumes: np.ndarray
 ) -> list[dict]:
@@ -297,6 +331,8 @@ def api_price(
     session: str = Query("all"),
     resolution: int = Query(1, ge=1, le=60),
     use_clean: bool = Query(False),
+    spike_filter: str | None = Query(None),
+    spike_window: int = Query(3, ge=1, le=21),
 ):
     df = _load_csv(date, symbol)
     if df.empty:
@@ -306,6 +342,12 @@ def api_price(
     df = _filter_session(df, session)
     if df.empty:
         raise HTTPException(404, "no data for session")
+
+    # spike filter on 1s data (before aggregation)
+    if spike_filter:
+        if spike_filter not in {"hampel"}:
+            raise HTTPException(400, f"invalid spike_filter: {spike_filter}")
+        df = _apply_spike_filter(df, spike_filter, spike_window)
 
     # aggregate
     df_agg = _aggregate(df, resolution)
