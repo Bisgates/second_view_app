@@ -552,6 +552,17 @@
     if (!state.currentDate || !state.currentSymbol) return;
     loading.classList.remove('hidden');
 
+    // Save current view center time before re-render
+    let savedCenter = null;
+    let savedHalfSpan = null;
+    if (chart) {
+      const range = chart.timeScale().getVisibleRange();
+      if (range) {
+        savedCenter = (range.from + range.to) / 2;
+        savedHalfSpan = (range.to - range.from) / 2;
+      }
+    }
+
     const params = new URLSearchParams({
       session: state.session,
       resolution: state.resolution,
@@ -561,7 +572,7 @@
     try {
       const data = await fetchJSON(`/api/price/${state.currentDate}/${state.currentSymbol}?${params}`);
       state.data = data;
-      renderChart(data);
+      renderChart(data, savedCenter, savedHalfSpan);
       updateToolbar(data);
       updateStats(data);
     } catch(e) {
@@ -584,7 +595,7 @@
     });
   }
 
-  function renderChart(data) {
+  function renderChart(data, savedCenter, savedHalfSpan) {
     createChart();
     applyBarSpacing();
 
@@ -692,7 +703,14 @@
     updateMALegend({ mas: getLastMAValues(data) });
     updateVolLegend({});
 
-    chart.timeScale().fitContent();
+    if (savedCenter != null && savedHalfSpan != null) {
+      chart.timeScale().setVisibleRange({
+        from: savedCenter - savedHalfSpan,
+        to: savedCenter + savedHalfSpan,
+      });
+    } else {
+      chart.timeScale().fitContent();
+    }
   }
 
   function getLastMAValues(data) {

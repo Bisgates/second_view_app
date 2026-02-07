@@ -298,8 +298,8 @@ def api_price(
     volumes = df_agg["volume"].values.astype(float)
     volume = _build_volume_bars(times, opens, closes, volumes)
 
-    # VWAP (cumulative, computed from un-aggregated session data)
-    vwap = _compute_vwap(df)
+    # VWAP (cumulative, aligned to aggregated resolution)
+    vwap = _compute_vwap(df_agg)
 
     # MAs on close price (all periods)
     mas = {}
