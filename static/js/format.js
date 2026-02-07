@@ -19,6 +19,10 @@ export function formatVol(n) {
   return Math.round(n).toLocaleString();
 }
 
+export function formatAmount(n) {
+  return (n / 1e6).toFixed(2) + 'M';
+}
+
 export function formatNumber(n) {
   if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
   if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';

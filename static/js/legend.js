@@ -1,7 +1,7 @@
 import { state } from './state.js';
 import { MA_PERIODS, MA_COLORS } from './config.js';
 import { legend, maLegend, volLegend } from './dom.js';
-import { formatTime, formatVol } from './format.js';
+import { formatTime, formatAmount } from './format.js';
 
 export function updateMALegend(d) {
   if (!state.showMA) {
@@ -19,12 +19,12 @@ export function updateMALegend(d) {
 }
 
 export function updateVolLegend(d) {
-  let html = '<span style="color:#94a3b8">成交量</span> &nbsp;';
+  let html = '<span style="color:#94a3b8">成交额</span> &nbsp;';
   if (d && d.vol !== undefined) {
-    html += `<span style="color:#e2e8f0">VOL: ${formatVol(d.vol)}</span>`;
+    html += `<span style="color:#e2e8f0">AMT: ${formatAmount(d.vol)}</span>`;
   }
   if (d && d.volMa !== undefined) {
-    html += ` &nbsp;<span style="color:#ef4444">MA20: ${formatVol(d.volMa)}</span>`;
+    html += ` &nbsp;<span style="color:#ef4444">MA20: ${formatAmount(d.volMa)}</span>`;
   }
   volLegend.innerHTML = html;
 }

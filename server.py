@@ -377,9 +377,9 @@ def api_price(
             "close": round(float(closes[i]), 4),
         })
 
-    # volume aligned with candle resolution
-    volumes = df_agg["volume"].values.astype(float)
-    volume = _build_volume_bars(times, opens, closes, volumes)
+    # amount bars (成交额) aligned with candle resolution
+    amounts = df_agg["amount"].values.astype(float)
+    amount_bars = _build_volume_bars(times, opens, closes, amounts)
 
     # VWAP (cumulative, aligned to aggregated resolution)
     vwap = _compute_vwap(df_agg)
@@ -389,10 +389,10 @@ def api_price(
     for p in MA_PERIODS:
         mas[str(p)] = _compute_ma(closes, times, p)
 
-    # Volume MA (MA20 on aggregated volume)
-    vol_values = np.array([v["value"] for v in volume], dtype=float)
-    vol_times = np.array([v["time"] for v in volume], dtype=int)
-    volume_ma = _compute_ma(vol_values, vol_times, 20)
+    # Amount MA20
+    amt_values = np.array([v["value"] for v in amount_bars], dtype=float)
+    amt_times = np.array([v["time"] for v in amount_bars], dtype=int)
+    amount_ma = _compute_ma(amt_values, amt_times, 20)
 
     # stats
     first_open = float(opens[0])
@@ -437,10 +437,10 @@ def api_price(
         "session": session,
         "resolution": resolution,
         "candles": candles,
-        "volume": volume,
+        "volume": amount_bars,
         "vwap": vwap,
         "mas": mas,
-        "volume_ma": volume_ma,
+        "volume_ma": amount_ma,
         "stats": stats,
         "market_open_time": market_open_time,
     })

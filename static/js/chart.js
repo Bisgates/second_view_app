@@ -194,9 +194,8 @@ export function applyBarSpacing() {
   });
 }
 
-export function renderChart(data, savedCenter, savedHalfSpan) {
+export function renderChart(data, savedCenter) {
   createChart();
-  applyBarSpacing();
 
   if (state.chartType === 'candle') {
     mainSeries = chart.addCandlestickSeries({
@@ -277,15 +276,23 @@ export function renderChart(data, savedCenter, savedHalfSpan) {
   updateMALegend({ mas: getLastMAValues(data) });
   updateVolLegend({});
 
-  if (savedCenter != null && savedHalfSpan != null) {
-    chart.timeScale().setVisibleRange({
-      from: savedCenter - savedHalfSpan,
-      to: savedCenter + savedHalfSpan,
-    });
+  applyBarSpacing();
+
+  const centerLogical = timeToLogical(data, savedCenter);
+  const logicalRange = chart.timeScale().getVisibleLogicalRange();
+  if (Number.isFinite(centerLogical) && logicalRange && Number.isFinite(logicalRange.from) && Number.isFinite(logicalRange.to)) {
+    const halfSpan = (logicalRange.to - logicalRange.from) / 2;
+    if (Number.isFinite(halfSpan) && halfSpan > 0) {
+      chart.timeScale().setVisibleLogicalRange({
+        from: centerLogical - halfSpan,
+        to: centerLogical + halfSpan,
+      });
+    } else {
+      chart.timeScale().fitContent();
+    }
   } else {
     chart.timeScale().fitContent();
   }
-  applyBarSpacing();
 }
 
 export function getLastMAValues(data) {
@@ -311,4 +318,12 @@ export function updateIndicatorVisibility() {
   } else if (state.data) {
     updateMALegend({ mas: getLastMAValues(state.data) });
   }
+}
+
+function timeToLogical(data, targetTime) {
+  if (!data || !data.candles || data.candles.length === 0 || !Number.isFinite(targetTime)) return null;
+  const resolution = Number.isFinite(data.resolution) ? data.resolution : state.resolution;
+  if (!Number.isFinite(resolution) || resolution <= 0) return null;
+  const firstTime = data.candles[0].time;
+  return (targetTime - firstTime) / resolution;
 }
