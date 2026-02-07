@@ -349,7 +349,7 @@
   setupBtnGroup('chartTypeGroup', v => { state.chartType = v; loadChart(); });
   setupBtnGroup('resGroup', v => { state.resolution = parseInt(v); loadChart(); });
   setupBtnGroup('sessionGroup', v => { state.session = v; loadChart(); });
-  setupBtnGroup('tzGroup', v => { state.tz = v; updateClock(); });
+  setupBtnGroup('tzGroup', v => { state.tz = v; updateClock(); loadChart(); });
 
   $('toggleMA').addEventListener('click', function() {
     state.showMA = !state.showMA;
@@ -392,6 +392,12 @@
         visible: true,
         borderColor: '#1f2633',
       },
+      localization: {
+        timeFormatter: (t) => {
+          const dt = new Date(t * 1000);
+          return dt.toLocaleString('en-US', {timeZone: state.tz, hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false});
+        },
+      },
       timeScale: {
         borderColor: '#1f2633',
         timeVisible: true,
@@ -399,6 +405,10 @@
         rightOffset: 5,
         barSpacing: 6,
         minBarSpacing: 0.5,
+        tickMarkFormatter: (t) => {
+          const dt = new Date(t * 1000);
+          return dt.toLocaleString('en-US', {timeZone: state.tz, hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false});
+        },
       },
       handleScale: { axisPressedMouseMove: { time: false, price: true } },
       handleScroll: { vertTouchDrag: false },
