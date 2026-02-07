@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SecondView – 1s Stock Data</title>
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0a0e17;--bg2:#111827;--bg3:#1e293b;--bg4:#334155;
+    --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+    --green:#22c55e;--red:#ef4444;--amber:#f59e0b;--blue:#3b82f6;
+    --orange:#f97316;--purple:#a855f7;--cyan:#06b6d4;
+    --border:#1e293b;--accent:#3b82f6;
+  }
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:'SF Mono',Consolas,'Courier New',monospace;font-size:13px;overflow:hidden}
+
+  /* Header */
+  .header{display:flex;align-items:center;gap:16px;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);height:44px}
+  .logo{font-size:16px;font-weight:700;color:var(--accent);white-space:nowrap}
+  .logo span{color:var(--text3);font-weight:400;font-size:12px;margin-left:6px}
+  .date-pills{display:flex;gap:4px;margin-left:16px}
+  .date-pill{padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:12px;transition:all .15s}
+  .date-pill:hover{border-color:var(--accent);color:var(--text)}
+  .date-pill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .clock{margin-left:auto;color:var(--text3);font-size:12px}
+
+  /* Symbol Strip */
+  .symbol-strip{display:flex;gap:6px;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:thin}
+  .symbol-strip::-webkit-scrollbar{height:4px}
+  .symbol-strip::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:2px}
+  .sym-card{flex-shrink:0;padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg);cursor:pointer;transition:all .15s;min-width:120px}
+  .sym-card:hover{border-color:var(--accent)}
+  .sym-card.active{border-color:var(--accent);background:rgba(59,130,246,.1)}
+  .sym-card .sym-name{font-weight:700;font-size:13px}
+  .sym-card .sym-price{font-size:12px;margin-top:2px}
+  .sym-card .sym-change{font-size:11px;margin-top:1px}
+  .sym-card .sym-change.up{color:var(--green)}
+  .sym-card .sym-change.down{color:var(--red)}
+
+  /* Main Layout */
+  .main{display:flex;height:calc(100vh - 44px - 50px);overflow:hidden}
+  .chart-section{flex:1;display:flex;flex-direction:column;min-width:0}
+  .stats-panel{width:220px;background:var(--bg2);border-left:1px solid var(--border);overflow-y:auto;padding:12px;flex-shrink:0}
+
+  /* Chart Toolbar */
+  .toolbar{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bg);border-bottom:1px solid var(--border);flex-wrap:wrap}
+  .toolbar-sym{font-size:18px;font-weight:700;margin-right:4px}
+  .toolbar-price{font-size:16px;margin-right:4px}
+  .toolbar-change{font-size:14px;margin-right:12px}
+  .toolbar-change.up{color:var(--green)}
+  .toolbar-change.down{color:var(--red)}
+  .btn-group{display:flex;gap:1px;background:var(--border);border-radius:4px;overflow:hidden}
+  .btn{padding:4px 10px;background:var(--bg3);color:var(--text2);cursor:pointer;font-size:11px;border:none;font-family:inherit;transition:all .15s}
+  .btn:hover{background:var(--bg4);color:var(--text)}
+  .btn.active{background:var(--accent);color:#fff}
+  .toggle-btn{padding:4px 10px;border-radius:4px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:11px;font-family:inherit;transition:all .15s}
+  .toggle-btn:hover{border-color:var(--accent);color:var(--text)}
+  .toggle-btn.active{background:rgba(59,130,246,.15);border-color:var(--accent);color:var(--accent)}
+  .toolbar-sep{width:1px;height:20px;background:var(--border);margin:0 4px}
+
+  /* Chart Container */
+  .chart-wrap{flex:1;position:relative;min-height:0}
+  #chart{width:100%;height:100%}
+
+  /* MA Legend overlay (top of chart) */
+  .ma-legend{position:absolute;top:8px;left:12px;z-index:10;font-size:11px;color:var(--text3);pointer-events:none;line-height:1.5;white-space:nowrap}
+
+  /* Volume Legend overlay (above volume area) */
+  .vol-legend{position:absolute;bottom:60px;left:12px;z-index:10;font-size:11px;color:var(--text3);pointer-events:none}
+
+  /* Chart OHLC legend (below MA legend) */
+  .chart-legend{position:absolute;top:26px;left:12px;z-index:10;font-size:11px;color:var(--text2);pointer-events:none;line-height:1.6}
+  .chart-legend .legend-time{color:var(--cyan)}
+  .chart-legend .legend-value{color:var(--text)}
+  .chart-legend .legend-vol{color:var(--green)}
+  .chart-legend .legend-vwap{color:var(--amber)}
+
+  /* Stats Panel */
+  .stat-section{margin-bottom:16px}
+  .stat-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+  .stat-row{display:flex;justify-content:space-between;padding:2px 0;font-size:12px}
+  .stat-label{color:var(--text3)}
+  .stat-value{color:var(--text);font-weight:500}
+  .stat-value.up{color:var(--green)}
+  .stat-value.down{color:var(--red)}
+
+  /* Range selection overlay */
+  .range-overlay{position:absolute;top:0;height:calc(100% - 28px);background:rgba(59,130,246,0.08);border-left:1px dashed rgba(59,130,246,0.4);border-right:1px dashed rgba(59,130,246,0.4);pointer-events:none;z-index:5;display:none}
+  .range-info{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);background:rgba(10,14,23,0.92);border:1px solid var(--accent);border-radius:4px;padding:8px 14px;font-size:14px;white-space:nowrap;color:var(--text);letter-spacing:.3px}
+
+  /* Loading */
+  .loading-overlay{position:absolute;inset:0;background:rgba(10,14,23,.85);display:flex;align-items:center;justify-content:center;z-index:100;font-size:14px;color:var(--text2)}
+  .loading-overlay.hidden{display:none}
+  .spinner{width:24px;height:24px;border:2px solid var(--bg4);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;margin-right:10px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* Keyboard hints */
+  .kb-hint{position:fixed;bottom:8px;left:16px;font-size:10px;color:var(--text3);z-index:10}
+  .kb-hint kbd{padding:1px 4px;background:var(--bg3);border:1px solid var(--border);border-radius:2px;font-size:10px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">SecondView<span>1s Data</span></div>
+  <div class="date-pills" id="datePills"></div>
+  <div class="btn-group" id="tzGroup">
+    <button class="btn active" data-val="America/New_York">ET</button>
+    <button class="btn" data-val="Asia/Shanghai">BJ</button>
+  </div>
+  <div class="clock" id="clock"></div>
+</div>
+
+<div class="symbol-strip" id="symbolStrip"></div>
+
+<div class="main">
+  <div class="chart-section">
+    <div class="toolbar">
+      <span class="toolbar-sym" id="tbSymbol">-</span>
+      <span class="toolbar-price" id="tbPrice">-</span>
+      <span class="toolbar-change" id="tbChange">-</span>
+      <div class="toolbar-sep"></div>
+      <div class="btn-group" id="chartTypeGroup">
+        <button class="btn" data-val="line">Line</button>
+        <button class="btn active" data-val="candle">Candle</button>
+      </div>
+      <div class="btn-group" id="resGroup">
+        <button class="btn" data-val="1">1s</button>
+        <button class="btn active" data-val="5">5s</button>
+        <button class="btn" data-val="10">10s</button>
+        <button class="btn" data-val="60">1m</button>
+      </div>
+      <div class="btn-group" id="sessionGroup">
+        <button class="btn active" data-val="all">All</button>
+        <button class="btn" data-val="premarket">Pre</button>
+        <button class="btn" data-val="market">Mkt</button>
+        <button class="btn" data-val="afterhours">Ext</button>
+      </div>
+      <div class="toolbar-sep"></div>
+      <button class="toggle-btn active" id="toggleVwap">VWAP</button>
+      <button class="toggle-btn active" id="toggleMA">MA</button>
+      <button class="toggle-btn" id="toggleClean">Clean</button>
+    </div>
+    <div class="chart-wrap">
+      <div class="ma-legend" id="maLegend"></div>
+      <div class="chart-legend" id="chartLegend"></div>
+      <div class="vol-legend" id="volLegend"></div>
+      <div id="chart"></div>
+      <div class="range-overlay" id="rangeOverlay"><div class="range-info" id="rangeInfo"></div></div>
+      <div class="loading-overlay hidden" id="loading">
+        <div class="spinner"></div>Loading…
+      </div>
+    </div>
+  </div>
+  <div class="stats-panel" id="statsPanel">
+    <div class="stat-section">
+      <div class="stat-title">Price</div>
+      <div id="statPrice"></div>
+    </div>
+    <div class="stat-section">
+      <div class="stat-title">Volume</div>
+      <div id="statVolume"></div>
+    </div>
+    <div class="stat-section">
+      <div class="stat-title">Session</div>
+      <div id="statSession"></div>
+    </div>
+    <div class="stat-section">
+      <div class="stat-title">Data</div>
+      <div id="statData"></div>
+    </div>
+  </div>
+</div>
+
+<div class="kb-hint">
+  <kbd>&larr;</kbd><kbd>&rarr;</kbd> symbol &nbsp;
+  <kbd>L</kbd> line &nbsp;
+  <kbd>C</kbd> candle &nbsp;
+  <kbd>F</kbd> fit &nbsp;
+  <kbd>V</kbd> vwap &nbsp;
+  <kbd>M</kbd> ma
+</div>
+
+<script>
+(function(){
+  // ---- MA Config ----
+  const MA_PERIODS = [5, 100, 200];
+  const MA_COLORS = {
+    '5':   '#22c55e',  // green
+    '100': '#f97316',  // orange
+    '200': '#a855f7',  // purple
+  };
+
+  // ---- State ----
+  let state = {
+    dates: {},
+    currentDate: null,
+    currentSymbol: null,
+    chartType: 'candle',
+    resolution: 5,
+    session: 'all',
+    showVwap: true,
+    showMA: true,
+    useClean: false,
+    data: null,
+    tz: 'America/New_York',
+  };
+
+  // ---- Chart globals ----
+  let chart = null;
+  let mainSeries = null;
+  let volumeSeries = null;
+  let vwapSeries = null;
+  let maSeries = {};      // keyed by period string
+  let volMaSeries = null;  // Volume MA line
+  let openPriceLine = null;
+
+  // ---- DOM refs ----
+  const $ = id => document.getElementById(id);
+  const datePills = $('datePills');
+  const symbolStrip = $('symbolStrip');
+  const chartEl = $('chart');
+  const loading = $('loading');
+  const legend = $('chartLegend');
+  const maLegend = $('maLegend');
+  const volLegend = $('volLegend');
+
+  // ---- API ----
+  async function fetchJSON(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  // ---- Init ----
+  async function init() {
+    updateClock();
+    setInterval(updateClock, 1000);
+    try {
+      const resp = await fetchJSON('/api/dates');
+      state.dates = resp.dates;
+      const dateKeys = Object.keys(state.dates).sort().reverse();
+      if (dateKeys.length === 0) return;
+      renderDatePills(dateKeys);
+      selectDate(dateKeys[0]);
+    } catch(e) {
+      console.error('init error', e);
+    }
+  }
+
+  function tzLabel() { return state.tz === 'Asia/Shanghai' ? 'BJ' : 'ET'; }
+
+  function updateClock() {
+    const now = new Date();
+    const t = now.toLocaleString('en-US', {timeZone: state.tz, hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false});
+    $('clock').textContent = `${tzLabel()} ${t}`;
+  }
+
+  // ---- Date pills ----
+  function renderDatePills(dates) {
+    datePills.innerHTML = '';
+    dates.forEach(d => {
+      const pill = document.createElement('div');
+      pill.className = 'date-pill';
+      pill.textContent = `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
+      pill.dataset.date = d;
+      pill.onclick = () => selectDate(d);
+      datePills.appendChild(pill);
+    });
+  }
+
+  function selectDate(date) {
+    state.currentDate = date;
+    document.querySelectorAll('.date-pill').forEach(p => p.classList.toggle('active', p.dataset.date === date));
+    const symbols = state.dates[date] || [];
+    renderSymbolStrip(symbols);
+    if (symbols.length > 0) {
+      selectSymbol(symbols[0].symbol);
+    }
+  }
+
+  // ---- Symbol strip ----
+  function renderSymbolStrip(symbols) {
+    symbolStrip.innerHTML = '';
+    symbols.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'sym-card';
+      card.dataset.symbol = s.symbol;
+      const up = s.change_pct >= 0;
+      card.innerHTML = `
+        <div class="sym-name">${s.symbol}</div>
+        <div class="sym-price">$${s.close.toFixed(2)}</div>
+        <div class="sym-change ${up?'up':'down'}">${up?'+':''}${s.change_pct.toFixed(2)}%</div>
+      `;
+      card.onclick = () => selectSymbol(s.symbol);
+      symbolStrip.appendChild(card);
+    });
+  }
+
+  function selectSymbol(symbol) {
+    state.currentSymbol = symbol;
+    document.querySelectorAll('.sym-card').forEach(c => c.classList.toggle('active', c.dataset.symbol === symbol));
+    loadChart();
+  }
+
+  // ---- Button groups ----
+  function setupBtnGroup(groupId, onChange) {
+    const group = $(groupId);
+    group.querySelectorAll('.btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        group.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        onChange(btn.dataset.val);
+      });
+    });
+  }
+
+  function setGroupValue(groupId, val) {
+    const group = $(groupId);
+    group.querySelectorAll('.btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.val === val);
+    });
+  }
+
+  setupBtnGroup('chartTypeGroup', v => { state.chartType = v; loadChart(); });
+  setupBtnGroup('resGroup', v => { state.resolution = parseInt(v); loadChart(); });
+  setupBtnGroup('sessionGroup', v => { state.session = v; loadChart(); });
+  setupBtnGroup('tzGroup', v => { state.tz = v; updateClock(); });
+
+  $('toggleVwap').addEventListener('click', function() {
+    state.showVwap = !state.showVwap;
+    this.classList.toggle('active', state.showVwap);
+    updateIndicatorVisibility();
+  });
+  $('toggleMA').addEventListener('click', function() {
+    state.showMA = !state.showMA;
+    this.classList.toggle('active', state.showMA);
+    updateIndicatorVisibility();
+  });
+  $('toggleClean').addEventListener('click', function() {
+    state.useClean = !state.useClean;
+    this.classList.toggle('active', state.useClean);
+    loadChart();
+  });
+
+  // ---- Chart ----
+  function createChart() {
+    if (chart) { chart.remove(); chart = null; }
+    maSeries = {};
+    volMaSeries = null;
+    openPriceLine = null;
+
+    chart = LightweightCharts.createChart(chartEl, {
+      layout: {
+        background: { type: 'solid', color: '#0a0e17' },
+        textColor: '#94a3b8',
+        fontSize: 11,
+        fontFamily: "'SF Mono', Consolas, monospace",
+      },
+      grid: {
+        vertLines: { color: 'rgba(30,41,59,0.5)' },
+        horzLines: { color: 'rgba(30,41,59,0.5)' },
+      },
+      crosshair: {
+        mode: LightweightCharts.CrosshairMode.Normal,
+        vertLine: { color: 'rgba(59,130,246,0.3)', width: 1, style: 0 },
+        horzLine: { color: 'rgba(59,130,246,0.3)', width: 1, style: 0 },
+      },
+      rightPriceScale: {
+        borderColor: '#1e293b',
+        scaleMargins: { top: 0.05, bottom: 0.2 },
+      },
+      leftPriceScale: {
+        visible: true,
+        borderColor: '#1e293b',
+      },
+      timeScale: {
+        borderColor: '#1e293b',
+        timeVisible: true,
+        secondsVisible: true,
+        rightOffset: 5,
+        barSpacing: 6,
+        minBarSpacing: 3,
+      },
+      handleScale: { axisPressedMouseMove: { time: false, price: true } },
+      handleScroll: { vertTouchDrag: false },
+    });
+
+    // Volume sub-chart using histogram on price scale 'vol'
+    volumeSeries = chart.addHistogramSeries({
+      priceFormat: { type: 'volume' },
+      priceScaleId: 'vol',
+    });
+    chart.priceScale('vol').applyOptions({
+      scaleMargins: { top: 0.85, bottom: 0 },
+      drawTicks: false,
+      borderVisible: false,
+    });
+
+    // Volume MA line (on vol scale)
+    volMaSeries = chart.addLineSeries({
+      color: '#ef4444',
+      lineWidth: 1,
+      priceScaleId: 'vol',
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    });
+
+    // VWAP
+    vwapSeries = chart.addLineSeries({
+      color: '#f59e0b',
+      lineWidth: 1.5,
+      lineStyle: LightweightCharts.LineStyle.Dashed,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    });
+
+    // MA series (all periods)
+    MA_PERIODS.forEach(p => {
+      const key = String(p);
+      maSeries[key] = chart.addLineSeries({
+        color: MA_COLORS[key] || '#94a3b8',
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+    });
+
+    // Crosshair legend
+    chart.subscribeCrosshairMove(param => {
+      if (!param || !param.time || !state.data) {
+        updateLegend(null);
+        updateMALegend(null);
+        updateVolLegend(null);
+        return;
+      }
+      const d = { time: param.time };
+
+      // Main series data
+      if (mainSeries) {
+        const v = param.seriesData.get(mainSeries);
+        if (v) d.main = v;
+      }
+
+      // Volume
+      if (volumeSeries) {
+        const v = param.seriesData.get(volumeSeries);
+        if (v) d.vol = v.value;
+      }
+
+      // VWAP
+      if (vwapSeries && state.showVwap) {
+        const v = param.seriesData.get(vwapSeries);
+        if (v) d.vwap = v.value;
+      }
+
+      // MA values
+      d.mas = {};
+      if (state.showMA) {
+        MA_PERIODS.forEach(p => {
+          const key = String(p);
+          if (maSeries[key]) {
+            const v = param.seriesData.get(maSeries[key]);
+            if (v) d.mas[key] = v.value;
+          }
+        });
+      }
+
+      // Volume MA
+      if (volMaSeries) {
+        const v = param.seriesData.get(volMaSeries);
+        if (v) d.volMa = v.value;
+      }
+
+      updateLegend(d);
+      updateMALegend(d);
+      updateVolLegend(d);
+    });
+
+    new ResizeObserver(() => {
+      chart.applyOptions({ width: chartEl.clientWidth, height: chartEl.clientHeight });
+    }).observe(chartEl);
+  }
+
+  function formatTime(epoch) {
+    const dt = new Date(epoch * 1000);
+    return dt.toLocaleString('en-US', {timeZone: state.tz, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false});
+  }
+
+  function formatVol(n) {
+    if (n >= 1e6) return (n/1e6).toFixed(2)+'M';
+    if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
+    return Math.round(n).toLocaleString();
+  }
+
+  function updateMALegend(d) {
+    if (!state.showMA) {
+      maLegend.innerHTML = '';
+      return;
+    }
+    let html = '<span style="color:#94a3b8">MA</span> &nbsp;';
+    MA_PERIODS.forEach(p => {
+      const key = String(p);
+      const color = MA_COLORS[key] || '#94a3b8';
+      const val = (d && d.mas && d.mas[key] !== undefined) ? d.mas[key].toFixed(3) : '';
+      html += `<span style="color:${color}">MA${p}:${val}</span> &nbsp;`;
+    });
+    maLegend.innerHTML = html;
+  }
+
+  function updateVolLegend(d) {
+    let html = '<span style="color:#94a3b8">成交量</span> &nbsp;';
+    if (d && d.vol !== undefined) {
+      html += `<span style="color:#e2e8f0">VOL: ${formatVol(d.vol)}</span>`;
+    }
+    if (d && d.volMa !== undefined) {
+      html += ` &nbsp;<span style="color:#ef4444">MA20: ${formatVol(d.volMa)}</span>`;
+    }
+    volLegend.innerHTML = html;
+  }
+
+  function updateLegend(d) {
+    if (!d || !d.main) {
+      legend.innerHTML = '';
+      return;
+    }
+    const m = d.main;
+    let html = '';
+    // Time
+    if (d.time) html += `<span class="legend-time">${formatTime(d.time)}</span> &nbsp; `;
+    // OHLC or line price
+    if (m.open !== undefined) {
+      html += `O <span class="legend-value">${m.open.toFixed(2)}</span> `;
+      html += `H <span class="legend-value">${m.high.toFixed(2)}</span> `;
+      html += `L <span class="legend-value">${m.low.toFixed(2)}</span> `;
+      html += `C <span class="legend-value">${m.close.toFixed(2)}</span>`;
+    } else if (m.value !== undefined) {
+      html += `Price <span class="legend-value">${m.value.toFixed(2)}</span>`;
+    }
+    // VWAP
+    if (d.vwap !== undefined) html += ` &nbsp; <span class="legend-vwap">VWAP ${d.vwap.toFixed(2)}</span>`;
+    legend.innerHTML = html;
+  }
+
+  // ---- Load data & render ----
+  async function loadChart() {
+    if (!state.currentDate || !state.currentSymbol) return;
+    loading.classList.remove('hidden');
+
+    const params = new URLSearchParams({
+      session: state.session,
+      resolution: state.resolution,
+      use_clean: state.useClean,
+    });
+
+    try {
+      const data = await fetchJSON(`/api/price/${state.currentDate}/${state.currentSymbol}?${params}`);
+      state.data = data;
+      renderChart(data);
+      updateToolbar(data);
+      updateStats(data);
+    } catch(e) {
+      console.error('load error', e);
+    } finally {
+      loading.classList.add('hidden');
+    }
+  }
+
+  function applyBarSpacing() {
+    if (!chart) return;
+    let spacing = 6;
+    if (state.resolution <= 1) spacing = 4;
+    else if (state.resolution <= 5) spacing = 6;
+    else if (state.resolution <= 10) spacing = 8;
+    else spacing = 10;
+    chart.timeScale().applyOptions({
+      barSpacing: spacing,
+      minBarSpacing: Math.max(2, spacing - 3),
+    });
+  }
+
+  function renderChart(data) {
+    createChart();
+    applyBarSpacing();
+
+    // Main series
+    if (state.chartType === 'candle') {
+      mainSeries = chart.addCandlestickSeries({
+        upColor: '#22c55e',
+        downColor: '#ef4444',
+        borderUpColor: '#22c55e',
+        borderDownColor: '#ef4444',
+        wickUpColor: '#22c55e',
+        wickDownColor: '#ef4444',
+        borderVisible: false,
+      });
+      mainSeries.setData(data.candles);
+    } else {
+      mainSeries = chart.addLineSeries({
+        color: '#3b82f6',
+        lineWidth: 1.5,
+        priceLineVisible: true,
+        lastValueVisible: true,
+      });
+      const lineData = data.candles.map(c => ({ time: c.time, value: c.close }));
+      mainSeries.setData(lineData);
+    }
+
+    // Open price reference line (red dashed)
+    if (data.stats && data.stats.open) {
+      openPriceLine = mainSeries.createPriceLine({
+        price: data.stats.open,
+        color: '#ef4444',
+        lineWidth: 1,
+        lineStyle: LightweightCharts.LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: '',
+      });
+    }
+
+    // Volume
+    volumeSeries.setData(data.volume);
+
+    // Volume MA
+    if (data.volume_ma && data.volume_ma.length > 0) {
+      volMaSeries.setData(data.volume_ma);
+    }
+
+    // VWAP
+    vwapSeries.setData(data.vwap);
+    vwapSeries.applyOptions({ visible: state.showVwap });
+
+    // MAs (from "mas" dict)
+    MA_PERIODS.forEach(p => {
+      const key = String(p);
+      const maData = (data.mas && data.mas[key]) ? data.mas[key] : [];
+      maSeries[key].setData(maData);
+      maSeries[key].applyOptions({ visible: state.showMA });
+    });
+
+    // Markers: market open + high/low annotations
+    const markers = [];
+
+    // Market open marker
+    if (data.market_open_time && data.candles.length > 0) {
+      const markerCandle = data.candles.find(c => c.time >= data.market_open_time);
+      if (markerCandle) {
+        markers.push({
+          time: markerCandle.time,
+          position: 'belowBar',
+          color: '#f59e0b',
+          shape: 'arrowUp',
+          text: '9:30',
+        });
+      }
+    }
+
+    // High point marker
+    if (data.stats && data.stats.high_time) {
+      markers.push({
+        time: data.stats.high_time,
+        position: 'aboveBar',
+        color: '#22c55e',
+        shape: 'circle',
+        text: data.stats.high.toFixed(3),
+      });
+    }
+
+    // Low point marker
+    if (data.stats && data.stats.low_time) {
+      markers.push({
+        time: data.stats.low_time,
+        position: 'belowBar',
+        color: '#ef4444',
+        shape: 'circle',
+        text: data.stats.low.toFixed(3),
+      });
+    }
+
+    // Sort markers by time (required by lightweight-charts)
+    markers.sort((a, b) => a.time - b.time);
+    if (markers.length > 0) {
+      mainSeries.setMarkers(markers);
+    }
+
+    // Initialize MA legend with last values
+    updateMALegend({ mas: getLastMAValues(data) });
+    updateVolLegend({});
+
+    chart.timeScale().fitContent();
+  }
+
+  function getLastMAValues(data) {
+    const vals = {};
+    if (!data.mas) return vals;
+    MA_PERIODS.forEach(p => {
+      const key = String(p);
+      const arr = data.mas[key];
+      if (arr && arr.length > 0) {
+        vals[key] = arr[arr.length - 1].value;
+      }
+    });
+    return vals;
+  }
+
+  function updateIndicatorVisibility() {
+    if (vwapSeries) vwapSeries.applyOptions({ visible: state.showVwap });
+    MA_PERIODS.forEach(p => {
+      const key = String(p);
+      if (maSeries[key]) maSeries[key].applyOptions({ visible: state.showMA });
+    });
+    // Update MA legend visibility
+    if (!state.showMA) {
+      maLegend.innerHTML = '';
+    } else if (state.data) {
+      updateMALegend({ mas: getLastMAValues(state.data) });
+    }
+  }
+
+  function updateToolbar(data) {
+    const s = data.stats;
+    $('tbSymbol').textContent = data.symbol;
+    $('tbPrice').textContent = `$${s.close.toFixed(2)}`;
+    const changeEl = $('tbChange');
+    const up = s.change >= 0;
+    changeEl.textContent = `${up?'+':''}${s.change.toFixed(2)} (${up?'+':''}${s.change_pct.toFixed(2)}%)`;
+    changeEl.className = 'toolbar-change ' + (up ? 'up' : 'down');
+  }
+
+  function updateStats(data) {
+    const s = data.stats;
+    const up = s.change >= 0;
+
+    $('statPrice').innerHTML = `
+      <div class="stat-row"><span class="stat-label">Open</span><span class="stat-value">${s.open.toFixed(4)}</span></div>
+      <div class="stat-row"><span class="stat-label">High</span><span class="stat-value">${s.high.toFixed(4)}</span></div>
+      <div class="stat-row"><span class="stat-label">Low</span><span class="stat-value">${s.low.toFixed(4)}</span></div>
+      <div class="stat-row"><span class="stat-label">Close</span><span class="stat-value">${s.close.toFixed(4)}</span></div>
+      <div class="stat-row"><span class="stat-label">Change</span><span class="stat-value ${up?'up':'down'}">${up?'+':''}${s.change.toFixed(4)}</span></div>
+      <div class="stat-row"><span class="stat-label">Change%</span><span class="stat-value ${up?'up':'down'}">${up?'+':''}${s.change_pct.toFixed(2)}%</span></div>
+    `;
+
+    $('statVolume').innerHTML = `
+      <div class="stat-row"><span class="stat-label">Total</span><span class="stat-value">${formatNumber(s.volume)}</span></div>
+    `;
+
+    $('statSession').innerHTML = `
+      <div class="stat-row"><span class="stat-label">Filter</span><span class="stat-value">${data.session}</span></div>
+      <div class="stat-row"><span class="stat-label">Resolution</span><span class="stat-value">${data.resolution}s</span></div>
+    `;
+
+    const firstT = new Date(s.first_time * 1000).toLocaleString('en-US', {timeZone: state.tz, hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false});
+    const lastT = new Date(s.last_time * 1000).toLocaleString('en-US', {timeZone: state.tz, hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false});
+    $('statData').innerHTML = `
+      <div class="stat-row"><span class="stat-label">Points</span><span class="stat-value">${formatNumber(s.data_points)}</span></div>
+      <div class="stat-row"><span class="stat-label">First</span><span class="stat-value">${firstT}</span></div>
+      <div class="stat-row"><span class="stat-label">Last</span><span class="stat-value">${lastT}</span></div>
+    `;
+  }
+
+  function formatNumber(n) {
+    if (n >= 1e9) return (n/1e9).toFixed(2)+'B';
+    if (n >= 1e6) return (n/1e6).toFixed(2)+'M';
+    if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
+    return n.toLocaleString();
+  }
+
+  // ---- Keyboard shortcuts ----
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    const key = e.key.toLowerCase();
+
+    if (key === 'arrowleft' || key === 'arrowright') {
+      e.preventDefault();
+      const symbols = state.dates[state.currentDate] || [];
+      if (symbols.length === 0) return;
+      const idx = symbols.findIndex(s => s.symbol === state.currentSymbol);
+      let newIdx;
+      if (key === 'arrowleft') newIdx = (idx - 1 + symbols.length) % symbols.length;
+      else newIdx = (idx + 1) % symbols.length;
+      selectSymbol(symbols[newIdx].symbol);
+      const card = document.querySelector(`.sym-card[data-symbol="${symbols[newIdx].symbol}"]`);
+      if (card) card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+    if (key === 'l') {
+      state.chartType = 'line';
+      setGroupValue('chartTypeGroup', 'line');
+      loadChart();
+    }
+    if (key === 'c') {
+      state.chartType = 'candle';
+      setGroupValue('chartTypeGroup', 'candle');
+      loadChart();
+    }
+    if (key === 'f') {
+      if (chart) chart.timeScale().fitContent();
+    }
+    if (key === 'v') {
+      $('toggleVwap').click();
+    }
+    if (key === 'm') {
+      $('toggleMA').click();
+    }
+  });
+
+  // ---- Range selection on time axis drag ----
+  let rangeActive = false, rangeStartX = 0, rangeDragged = false;
+  const rangeOverlay = $('rangeOverlay');
+  const rangeInfo = $('rangeInfo');
+
+  chartEl.addEventListener('mousedown', e => {
+    const rect = chartEl.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    // Only trigger in time axis area (bottom ~28px)
+    if (y < chartEl.clientHeight - 28) return;
+    e.preventDefault();
+    rangeActive = true;
+    rangeDragged = false;
+    rangeStartX = e.clientX - rect.left;
+    rangeOverlay.style.display = 'block';
+    rangeOverlay.style.left = rangeStartX + 'px';
+    rangeOverlay.style.width = '0px';
+    rangeInfo.innerHTML = '';
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!rangeActive || !chart || !state.data) return;
+    rangeDragged = true;
+    const rect = chartEl.getBoundingClientRect();
+    const curX = e.clientX - rect.left;
+    const left = Math.min(rangeStartX, curX);
+    const width = Math.abs(curX - rangeStartX);
+    rangeOverlay.style.left = left + 'px';
+    rangeOverlay.style.width = width + 'px';
+
+    const t1 = chart.timeScale().coordinateToTime(rangeStartX);
+    const t2 = chart.timeScale().coordinateToTime(curX);
+    if (t1 != null && t2 != null) {
+      const tStart = Math.min(t1, t2), tEnd = Math.max(t1, t2);
+      const candles = state.data.candles;
+      const sc = _nearestCandle(candles, tStart);
+      const ec = _nearestCandle(candles, tEnd);
+      if (sc && ec) {
+        const pct = ((ec.close - sc.close) / sc.close * 100);
+        const elapsed = Math.abs(tEnd - tStart);
+        const sign = pct >= 0 ? '+' : '';
+        const color = pct >= 0 ? '#22c55e' : '#ef4444';
+        rangeInfo.innerHTML = `<span style="color:${color};font-weight:700">${sign}${pct.toFixed(2)}%</span> &nbsp; <span style="color:#94a3b8">${_fmtElapsed(elapsed)}</span>`;
+      }
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (rangeActive) {
+      rangeActive = false;
+      if (rangeDragged) setTimeout(() => { rangeDragged = false; }, 50);
+    }
+  });
+
+  chartEl.addEventListener('click', () => {
+    if (!rangeDragged) rangeOverlay.style.display = 'none';
+  });
+
+  function _nearestCandle(candles, time) {
+    let lo = 0, hi = candles.length - 1;
+    while (lo < hi) { const m = (lo + hi) >> 1; candles[m].time < time ? lo = m + 1 : hi = m; }
+    if (lo > 0 && Math.abs(candles[lo-1].time - time) < Math.abs(candles[lo].time - time)) return candles[lo-1];
+    return candles[lo] || null;
+  }
+
+  function _fmtElapsed(sec) {
+    if (state.resolution >= 60) return Math.round(sec / 60) + 'm';
+    return sec + 's';
+  }
+
+  // ---- Start ----
+  init();
+})();
+</script>
+</body>
+</html>
