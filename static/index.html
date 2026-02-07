@@ -585,13 +585,23 @@
   function applyBarSpacing() {
     if (!chart) return;
     let spacing = 6;
-    if (state.resolution <= 1) spacing = 2;
-    else if (state.resolution <= 5) spacing = 3;
-    else if (state.resolution <= 10) spacing = 5;
-    else spacing = 7;
+    let minSpacing = 1.5;
+    if (state.resolution <= 1) {
+      spacing = 3;
+      minSpacing = 1.5;
+    } else if (state.resolution <= 5) {
+      spacing = 4;
+      minSpacing = 1.7;
+    } else if (state.resolution <= 10) {
+      spacing = 6;
+      minSpacing = 2.0;
+    } else {
+      spacing = 8;
+      minSpacing = 2.2;
+    }
     chart.timeScale().applyOptions({
       barSpacing: spacing,
-      minBarSpacing: 0.5,
+      minBarSpacing: minSpacing,
     });
   }
 
@@ -608,7 +618,8 @@
         borderDownColor: '#ef4444',
         wickUpColor: '#22c55e',
         wickDownColor: '#ef4444',
-        borderVisible: false,
+        borderVisible: true,
+        wickVisible: true,
       });
       mainSeries.setData(data.candles);
     } else {
@@ -711,6 +722,7 @@
     } else {
       chart.timeScale().fitContent();
     }
+    applyBarSpacing();
   }
 
   function getLastMAValues(data) {

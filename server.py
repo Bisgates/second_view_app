@@ -136,7 +136,46 @@ def _aggregate(df: pd.DataFrame, resolution: int) -> pd.DataFrame:
             agg[c] = (c, "last")
 
     grouped = df.groupby("time", sort=True).agg(**agg).reset_index()
-    return grouped
+    return _fill_time_gaps(grouped, resolution)
+
+
+def _fill_time_gaps(df: pd.DataFrame, resolution: int) -> pd.DataFrame:
+    """Fill missing time buckets so bars render without gaps."""
+    if df.empty:
+        return df
+    times = df["time"].values
+    if len(times) < 2:
+        return df
+    full_times = np.arange(times.min(), times.max() + resolution, resolution, dtype=int)
+    if len(full_times) == len(times):
+        return df
+
+    df = df.set_index("time").reindex(full_times)
+
+    def _fill_ohlc(prefix: str = "") -> None:
+        c = f"{prefix}close"
+        o = f"{prefix}open"
+        h = f"{prefix}high"
+        l = f"{prefix}low"
+        if c not in df.columns:
+            return
+        df[c] = df[c].ffill()
+        if o in df.columns:
+            df[o] = df[o].fillna(df[c])
+        if h in df.columns:
+            df[h] = df[h].fillna(df[c])
+        if l in df.columns:
+            df[l] = df[l].fillna(df[c])
+
+    _fill_ohlc("")
+    if "clean_close" in df.columns:
+        _fill_ohlc("clean_")
+
+    for col in ("volume", "amount", "tick_count"):
+        if col in df.columns:
+            df[col] = df[col].fillna(0)
+
+    return df.reset_index().rename(columns={"index": "time"})
 
 
 def _compute_vwap(df: pd.DataFrame) -> list[dict]:
