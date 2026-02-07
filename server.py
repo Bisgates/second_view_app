@@ -246,7 +246,7 @@ def _build_volume_bars(
     """Build volume bars aligned with the aggregated candle resolution."""
     result = []
     for i in range(len(times)):
-        color = "#26a69a" if closes[i] >= opens[i] else "#ef5350"
+        color = "#4ade80" if closes[i] >= opens[i] else "#f87171"
         result.append(
             {
                 "time": int(times[i]),
