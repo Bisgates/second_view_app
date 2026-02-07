@@ -15,6 +15,7 @@
     --border:#1e293b;--accent:#3b82f6;
   }
   html,body{height:100%;background:var(--bg);color:var(--text);font-family:'SF Mono',Consolas,'Courier New',monospace;font-size:13px;overflow:hidden}
+  .hidden{display:none !important}
 
   /* Header */
   .header{display:flex;align-items:center;gap:16px;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);height:44px}
@@ -139,9 +140,7 @@
         <button class="btn" data-val="afterhours">Ext</button>
       </div>
       <div class="toolbar-sep"></div>
-      <button class="toggle-btn active" id="toggleVwap">VWAP</button>
       <button class="toggle-btn active" id="toggleMA">MA</button>
-      <button class="toggle-btn" id="toggleClean">Clean</button>
       <button class="toggle-btn" id="toggleFilter">Hampel</button>
     </div>
     <div class="chart-wrap">
@@ -155,24 +154,7 @@
       </div>
     </div>
   </div>
-  <div class="stats-panel" id="statsPanel">
-    <div class="stat-section">
-      <div class="stat-title">Price</div>
-      <div id="statPrice"></div>
-    </div>
-    <div class="stat-section">
-      <div class="stat-title">Volume</div>
-      <div id="statVolume"></div>
-    </div>
-    <div class="stat-section">
-      <div class="stat-title">Session</div>
-      <div id="statSession"></div>
-    </div>
-    <div class="stat-section">
-      <div class="stat-title">Data</div>
-      <div id="statData"></div>
-    </div>
-  </div>
+  <div class="stats-panel hidden" id="statsPanel"></div>
 </div>
 
 <div class="kb-hint">
@@ -331,20 +313,10 @@
   setupBtnGroup('sessionGroup', v => { state.session = v; loadChart(); });
   setupBtnGroup('tzGroup', v => { state.tz = v; updateClock(); });
 
-  $('toggleVwap').addEventListener('click', function() {
-    state.showVwap = !state.showVwap;
-    this.classList.toggle('active', state.showVwap);
-    updateIndicatorVisibility();
-  });
   $('toggleMA').addEventListener('click', function() {
     state.showMA = !state.showMA;
     this.classList.toggle('active', state.showMA);
     updateIndicatorVisibility();
-  });
-  $('toggleClean').addEventListener('click', function() {
-    state.useClean = !state.useClean;
-    this.classList.toggle('active', state.useClean);
-    loadChart();
   });
   $('toggleFilter').addEventListener('click', function() {
     state.spikeFilter = !state.spikeFilter;
