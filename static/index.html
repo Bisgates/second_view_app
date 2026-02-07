@@ -382,7 +382,7 @@
         secondsVisible: true,
         rightOffset: 5,
         barSpacing: 6,
-        minBarSpacing: 3,
+        minBarSpacing: 0.5,
       },
       handleScale: { axisPressedMouseMove: { time: false, price: true } },
       handleScroll: { vertTouchDrag: false },
@@ -574,13 +574,13 @@
   function applyBarSpacing() {
     if (!chart) return;
     let spacing = 6;
-    if (state.resolution <= 1) spacing = 4;
-    else if (state.resolution <= 5) spacing = 6;
-    else if (state.resolution <= 10) spacing = 8;
-    else spacing = 10;
+    if (state.resolution <= 1) spacing = 2;
+    else if (state.resolution <= 5) spacing = 3;
+    else if (state.resolution <= 10) spacing = 5;
+    else spacing = 7;
     chart.timeScale().applyOptions({
       barSpacing: spacing,
-      minBarSpacing: Math.max(2, spacing - 3),
+      minBarSpacing: 0.5,
     });
   }
 
