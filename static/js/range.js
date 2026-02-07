@@ -1,110 +1,116 @@
 import { state } from './state.js';
 import { chartEl, rangeOverlay, rangeTooltip } from './dom.js';
 import { formatRangeDuration } from './format.js';
-import { getChart, setChartInteraction } from './chart.js';
+import { getChart, getCrosshairBar, setChartInteraction } from './chart.js';
 
-const rangeState = { active: false, startX: 0, dragging: false };
-const RANGE_MIN_PX = 4;
+let active = false;
+let startX = 0;
+let startBar = null;
+let viewHandler = null;
 
 function clamp(val, min, max) {
   return Math.max(min, Math.min(max, val));
 }
 
 function hideRange() {
-  rangeState.active = false;
-  rangeState.dragging = false;
+  active = false;
+  startBar = null;
   rangeOverlay.style.display = 'none';
   rangeTooltip.style.display = 'none';
   setChartInteraction(true);
+  unsubView();
 }
 
-function nearestCandleByTime(candles, time) {
-  let lo = 0;
-  let hi = candles.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (candles[mid].time < time) lo = mid + 1;
-    else hi = mid;
+function subView() {
+  unsubView();
+  const chart = getChart();
+  if (chart) {
+    viewHandler = () => hideRange();
+    chart.timeScale().subscribeVisibleLogicalRangeChange(viewHandler);
   }
-  if (lo > 0 && Math.abs(candles[lo - 1].time - time) < Math.abs(candles[lo].time - time)) {
-    return candles[lo - 1];
+}
+
+function unsubView() {
+  if (viewHandler) {
+    const chart = getChart();
+    if (chart) chart.timeScale().unsubscribeVisibleLogicalRangeChange(viewHandler);
+    viewHandler = null;
   }
-  return candles[lo] || null;
+}
+
+function tooltipHTML(buyPrice, sellPrice, duration) {
+  const pct = ((sellPrice - buyPrice) / buyPrice) * 100;
+  const sign = pct >= 0 ? '+' : '';
+  const color = pct >= 0 ? '#22c55e' : '#ef4444';
+  return `<span style="color:${color};font-weight:600">${sign}${pct.toFixed(2)}%</span> · ${formatRangeDuration(duration)} · 买 ${buyPrice.toFixed(2)} / 卖 ${sellPrice.toFixed(2)}`;
 }
 
 export function initRangeSelection() {
   chartEl.addEventListener('mousedown', e => {
-    const chart = getChart();
-    if (e.button !== 0 || !chart || !state.data) return;
+    if (e.button !== 0 || !state.data) return;
+
+    // dismiss existing result on click
+    if (rangeTooltip.style.display === 'block') {
+      hideRange();
+      return;
+    }
+
+    const bar = getCrosshairBar();
+    if (!bar) return;
+
     e.preventDefault();
     e.stopPropagation();
-    const rect = chartEl.getBoundingClientRect();
-    rangeState.active = true;
-    rangeState.dragging = false;
-    rangeState.startX = clamp(e.clientX - rect.left, 0, rect.width);
-    setChartInteraction(false);
+
+    active = true;
+    startBar = bar;
+    startX = clamp(e.clientX - chartEl.getBoundingClientRect().left, 0, chartEl.clientWidth);
+
     rangeOverlay.style.display = 'block';
-    rangeOverlay.style.left = `${rangeState.startX}px`;
+    rangeOverlay.style.left = `${startX}px`;
     rangeOverlay.style.width = '0px';
     rangeTooltip.style.display = 'none';
+
+    setChartInteraction(false);
   });
 
   document.addEventListener('mousemove', e => {
-    if (!rangeState.active) return;
-    e.preventDefault();
+    if (!active) return;
+
     const rect = chartEl.getBoundingClientRect();
     const curX = clamp(e.clientX - rect.left, 0, rect.width);
-    const left = Math.min(rangeState.startX, curX);
-    const width = Math.abs(curX - rangeState.startX);
-    if (width > RANGE_MIN_PX) rangeState.dragging = true;
+    const left = Math.min(startX, curX);
+    const width = Math.abs(curX - startX);
     rangeOverlay.style.left = `${left}px`;
     rangeOverlay.style.width = `${width}px`;
+
+    const bar = getCrosshairBar();
+    if (bar && startBar) {
+      rangeTooltip.innerHTML = tooltipHTML(startBar.price, bar.price, Math.abs(bar.time - startBar.time));
+      const mid = clamp(left + width / 2, 16, rect.width - 16);
+      rangeTooltip.style.left = `${mid}px`;
+      rangeTooltip.style.display = 'block';
+    }
   });
 
-  document.addEventListener('mouseup', e => {
-    if (!rangeState.active) return;
-    const chart = getChart();
-    const rect = chartEl.getBoundingClientRect();
-    const endX = clamp(e.clientX - rect.left, 0, rect.width);
-    const width = Math.abs(endX - rangeState.startX);
-    rangeState.active = false;
-
-    if (!rangeState.dragging || width <= RANGE_MIN_PX || !chart || !state.data) {
-      hideRange();
-      return;
-    }
-
-    const leftX = Math.min(rangeState.startX, endX);
-    const rightX = Math.max(rangeState.startX, endX);
-
-    const tLeft = chart.timeScale().coordinateToTime(leftX);
-    const tRight = chart.timeScale().coordinateToTime(rightX);
-    if (tLeft == null || tRight == null || !state.data) {
-      hideRange();
-      return;
-    }
-    const candles = state.data.candles;
-    const buyCandle = nearestCandleByTime(candles, tLeft);
-    const sellCandle = nearestCandleByTime(candles, tRight);
-    if (!buyCandle || !sellCandle) {
-      hideRange();
-      return;
-    }
-
-    const pct = ((sellCandle.close - buyCandle.close) / buyCandle.close) * 100;
-    const sign = pct >= 0 ? '+' : '';
-    const color = pct >= 0 ? '#22c55e' : '#ef4444';
-    const duration = Math.abs(tRight - tLeft);
-    rangeTooltip.innerHTML = `<span style="color:${color};font-weight:600">${sign}${pct.toFixed(2)}%</span> · ${formatRangeDuration(duration)} · 买 ${buyCandle.close.toFixed(2)} / 卖 ${sellCandle.close.toFixed(2)}`;
-
-    const mid = clamp(leftX + width / 2, 16, rect.width - 16);
-    rangeTooltip.style.left = `${mid}px`;
-    rangeTooltip.style.display = 'block';
+  document.addEventListener('mouseup', () => {
+    if (!active) return;
+    active = false;
     setChartInteraction(true);
+
+    if (!startBar || !getCrosshairBar()) {
+      hideRange();
+      return;
+    }
+
+    // overlay + tooltip freeze at current pixel position
+    // dismiss on any zoom/scroll
+    subView();
   });
 
-  chartEl.addEventListener('click', () => {
-    if (!rangeState.dragging) hideRange();
+  document.addEventListener('mousedown', e => {
+    if (!active && rangeTooltip.style.display === 'block' && !chartEl.contains(e.target)) {
+      hideRange();
+    }
   });
 
   document.addEventListener('keydown', e => {

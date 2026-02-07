@@ -8,9 +8,14 @@ let mainSeries = null;
 let volumeSeries = null;
 let maSeries = {};
 let volMaSeries = null;
+let lastCrosshairBar = null;
 
 export function getChart() {
   return chart;
+}
+
+export function getCrosshairBar() {
+  return lastCrosshairBar;
 }
 
 export function setChartInteraction(enabled) {
@@ -118,6 +123,7 @@ export function createChart() {
 
   chart.subscribeCrosshairMove(param => {
     if (!param || !param.time || !state.data) {
+      lastCrosshairBar = null;
       updateLegend(null);
       updateMALegend(null);
       updateVolLegend(null);
@@ -127,7 +133,11 @@ export function createChart() {
 
     if (mainSeries) {
       const v = param.seriesData.get(mainSeries);
-      if (v) d.main = v;
+      if (v) {
+        d.main = v;
+        // store price: candlestick has .close, line has .value
+        lastCrosshairBar = { time: param.time, price: v.close != null ? v.close : v.value };
+      }
     }
 
     if (volumeSeries) {
