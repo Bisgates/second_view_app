@@ -8,6 +8,7 @@ import numpy as np
 import orjson
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, Response
 
@@ -29,6 +30,7 @@ SESSION_BOUNDS = {
 }
 
 app = FastAPI(title="second_view", version="2.0.0")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 

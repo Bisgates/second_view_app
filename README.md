@@ -16,8 +16,11 @@
 ## 项目结构
 
 ```
-server.py            # FastAPI 后端
-static/index.html    # 单页前端 (HTML + CSS + JS)
+server.py                 # FastAPI 后端
+static/index.html         # 页面骨架
+static/css/app.css        # 样式
+static/js/app.js          # 前端入口
+static/js/*.js            # 模块化逻辑
 ../data/1s/{YYYYMMDD}/{SYMBOL}.csv   # 数据文件
 ```
 
