@@ -111,8 +111,8 @@
 <div class="header">
   <div class="logo">SecondView<span>1s Data</span></div>
   <div class="btn-group" id="tzGroup">
-    <button class="btn active" data-val="America/New_York">ET</button>
-    <button class="btn" data-val="Asia/Shanghai">BJ</button>
+    <button class="btn" data-val="America/New_York">ET</button>
+    <button class="btn active" data-val="Asia/Shanghai">BJ</button>
   </div>
   <div class="clock" id="clock"></div>
 </div>
@@ -130,12 +130,12 @@
       <span class="toolbar-change" id="tbChange">-</span>
       <div class="toolbar-sep"></div>
       <div class="btn-group" id="chartTypeGroup">
-        <button class="btn" data-val="line">Line</button>
-        <button class="btn active" data-val="candle">Candle</button>
+        <button class="btn active" data-val="line">Line</button>
+        <button class="btn" data-val="candle">Candle</button>
       </div>
       <div class="btn-group" id="resGroup">
-        <button class="btn" data-val="1">1s</button>
-        <button class="btn active" data-val="5">5s</button>
+        <button class="btn active" data-val="1">1s</button>
+        <button class="btn" data-val="5">5s</button>
         <button class="btn" data-val="10">10s</button>
         <button class="btn" data-val="60">1m</button>
       </div>
@@ -147,7 +147,7 @@
       </div>
       <div class="toolbar-sep"></div>
       <button class="toggle-btn active" id="toggleMA">MA</button>
-      <button class="toggle-btn" id="toggleFilter">Hampel</button>
+      <button class="toggle-btn active" id="toggleFilter">Hampel</button>
     </div>
     <div class="chart-wrap">
       <div class="ma-legend" id="maLegend"></div>
@@ -178,14 +178,14 @@
     dates: {},
     currentDate: null,
     currentSymbol: null,
-    chartType: 'candle',
-    resolution: 5,
+    chartType: 'line',
+    resolution: 1,
     session: 'all',
     showMA: true,
     useClean: false,
-    spikeFilter: false,
+    spikeFilter: true,
     data: null,
-    tz: 'America/New_York',
+    tz: 'Asia/Shanghai',
   };
 
   // ---- Chart globals ----
