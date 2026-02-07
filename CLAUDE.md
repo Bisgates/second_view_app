@@ -30,7 +30,7 @@ CSV files live at `../data/1s/{YYYYMMDD}/{SYMBOL}.csv` (relative to `webapp/`). 
 
 All frontend code is in `static/` — a single-file SPA:
 
-- **`index.html`**: Contains all HTML, CSS, and JS inline. Uses lightweight-charts v4.1.0 from CDN. Features: date pills, symbol strip with change%, candlestick/line chart toggle, resolution selector (1s/5s/10s/1m), session filter (All/Pre/Mkt/Ext), VWAP/MA/Clean price toggles, crosshair legends, range-selection on time axis, keyboard shortcuts (arrow keys for symbol nav, L/C/F/V/M).
+- **`index.html`**: Contains all HTML, CSS, and JS inline. Uses lightweight-charts v4.1.0 from CDN. Features: date pills, symbol strip with change%, candlestick/line chart toggle, resolution selector (1s/5s/10s/1m), session filter (All/Pre/Mkt/Ext), VWAP/MA/Clean price toggles, crosshair legends, range-selection on time axis.
 
 ### Session Boundaries (UTC)
 

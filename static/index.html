@@ -76,7 +76,6 @@
   .chart-legend .legend-time{color:var(--cyan)}
   .chart-legend .legend-value{color:var(--text)}
   .chart-legend .legend-vol{color:var(--green)}
-  .chart-legend .legend-vwap{color:var(--amber)}
 
   /* Stats Panel */
   .stat-section{margin-bottom:16px}
@@ -87,9 +86,6 @@
   .stat-value.up{color:var(--green)}
   .stat-value.down{color:var(--red)}
 
-  /* Range selection overlay */
-  .range-overlay{position:absolute;top:0;height:calc(100% - 28px);background:rgba(59,130,246,0.08);border-left:1px dashed rgba(59,130,246,0.4);border-right:1px dashed rgba(59,130,246,0.4);pointer-events:none;z-index:5;display:none}
-  .range-info{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);background:rgba(10,14,23,0.92);border:1px solid var(--accent);border-radius:4px;padding:8px 14px;font-size:14px;white-space:nowrap;color:var(--text);letter-spacing:.3px}
 
   /* Loading */
   .loading-overlay{position:absolute;inset:0;background:rgba(10,14,23,.85);display:flex;align-items:center;justify-content:center;z-index:100;font-size:14px;color:var(--text2)}
@@ -97,9 +93,6 @@
   .spinner{width:24px;height:24px;border:2px solid var(--bg4);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;margin-right:10px}
   @keyframes spin{to{transform:rotate(360deg)}}
 
-  /* Keyboard hints */
-  .kb-hint{position:fixed;bottom:8px;left:16px;font-size:10px;color:var(--text3);z-index:10}
-  .kb-hint kbd{padding:1px 4px;background:var(--bg3);border:1px solid var(--border);border-radius:2px;font-size:10px}
 </style>
 </head>
 <body>
@@ -148,22 +141,12 @@
       <div class="chart-legend" id="chartLegend"></div>
       <div class="vol-legend" id="volLegend"></div>
       <div id="chart"></div>
-      <div class="range-overlay" id="rangeOverlay"><div class="range-info" id="rangeInfo"></div></div>
       <div class="loading-overlay hidden" id="loading">
         <div class="spinner"></div>Loading…
       </div>
     </div>
   </div>
   <div class="stats-panel hidden" id="statsPanel"></div>
-</div>
-
-<div class="kb-hint">
-  <kbd>&larr;</kbd><kbd>&rarr;</kbd> symbol &nbsp;
-  <kbd>L</kbd> line &nbsp;
-  <kbd>C</kbd> candle &nbsp;
-  <kbd>F</kbd> fit &nbsp;
-  <kbd>V</kbd> vwap &nbsp;
-  <kbd>M</kbd> ma
 </div>
 
 <script>
@@ -184,7 +167,6 @@
     chartType: 'candle',
     resolution: 5,
     session: 'all',
-    showVwap: true,
     showMA: true,
     useClean: false,
     spikeFilter: false,
@@ -196,10 +178,8 @@
   let chart = null;
   let mainSeries = null;
   let volumeSeries = null;
-  let vwapSeries = null;
   let maSeries = {};      // keyed by period string
   let volMaSeries = null;  // Volume MA line
-  let openPriceLine = null;
 
   // ---- DOM refs ----
   const $ = id => document.getElementById(id);
@@ -329,7 +309,6 @@
     if (chart) { chart.remove(); chart = null; }
     maSeries = {};
     volMaSeries = null;
-    openPriceLine = null;
 
     chart = LightweightCharts.createChart(chartEl, {
       layout: {
@@ -388,16 +367,6 @@
       crosshairMarkerVisible: false,
     });
 
-    // VWAP
-    vwapSeries = chart.addLineSeries({
-      color: '#f59e0b',
-      lineWidth: 1.5,
-      lineStyle: LightweightCharts.LineStyle.Dashed,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: false,
-    });
-
     // MA series (all periods)
     MA_PERIODS.forEach(p => {
       const key = String(p);
@@ -430,12 +399,6 @@
       if (volumeSeries) {
         const v = param.seriesData.get(volumeSeries);
         if (v) d.vol = v.value;
-      }
-
-      // VWAP
-      if (vwapSeries && state.showVwap) {
-        const v = param.seriesData.get(vwapSeries);
-        if (v) d.vwap = v.value;
       }
 
       // MA values
@@ -521,8 +484,6 @@
     } else if (m.value !== undefined) {
       html += `Price <span class="legend-value">${m.value.toFixed(2)}</span>`;
     }
-    // VWAP
-    if (d.vwap !== undefined) html += ` &nbsp; <span class="legend-vwap">VWAP ${d.vwap.toFixed(2)}</span>`;
     legend.innerHTML = html;
   }
 
@@ -616,18 +577,6 @@
       mainSeries.setData(lineData);
     }
 
-    // Open price reference line (red dashed)
-    if (data.stats && data.stats.open) {
-      openPriceLine = mainSeries.createPriceLine({
-        price: data.stats.open,
-        color: '#ef4444',
-        lineWidth: 1,
-        lineStyle: LightweightCharts.LineStyle.Dashed,
-        axisLabelVisible: true,
-        title: '',
-      });
-    }
-
     // Volume
     volumeSeries.setData(data.volume);
 
@@ -635,10 +584,6 @@
     if (data.volume_ma && data.volume_ma.length > 0) {
       volMaSeries.setData(data.volume_ma);
     }
-
-    // VWAP
-    vwapSeries.setData(data.vwap);
-    vwapSeries.applyOptions({ visible: state.showVwap });
 
     // MAs (from "mas" dict)
     MA_PERIODS.forEach(p => {
@@ -722,7 +667,6 @@
   }
 
   function updateIndicatorVisibility() {
-    if (vwapSeries) vwapSeries.applyOptions({ visible: state.showVwap });
     MA_PERIODS.forEach(p => {
       const key = String(p);
       if (maSeries[key]) maSeries[key].applyOptions({ visible: state.showMA });
@@ -781,114 +725,6 @@
     if (n >= 1e6) return (n/1e6).toFixed(2)+'M';
     if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
     return n.toLocaleString();
-  }
-
-  // ---- Keyboard shortcuts ----
-  document.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    const key = e.key.toLowerCase();
-
-    if (key === 'arrowleft' || key === 'arrowright') {
-      e.preventDefault();
-      const symbols = state.dates[state.currentDate] || [];
-      if (symbols.length === 0) return;
-      const idx = symbols.findIndex(s => s.symbol === state.currentSymbol);
-      let newIdx;
-      if (key === 'arrowleft') newIdx = (idx - 1 + symbols.length) % symbols.length;
-      else newIdx = (idx + 1) % symbols.length;
-      selectSymbol(symbols[newIdx].symbol);
-      const card = document.querySelector(`.sym-card[data-symbol="${symbols[newIdx].symbol}"]`);
-      if (card) card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }
-    if (key === 'l') {
-      state.chartType = 'line';
-      setGroupValue('chartTypeGroup', 'line');
-      loadChart();
-    }
-    if (key === 'c') {
-      state.chartType = 'candle';
-      setGroupValue('chartTypeGroup', 'candle');
-      loadChart();
-    }
-    if (key === 'f') {
-      if (chart) chart.timeScale().fitContent();
-    }
-    if (key === 'v') {
-      $('toggleVwap').click();
-    }
-    if (key === 'm') {
-      $('toggleMA').click();
-    }
-  });
-
-  // ---- Range selection on time axis drag ----
-  let rangeActive = false, rangeStartX = 0, rangeDragged = false;
-  const rangeOverlay = $('rangeOverlay');
-  const rangeInfo = $('rangeInfo');
-
-  chartEl.addEventListener('mousedown', e => {
-    const rect = chartEl.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    // Only trigger in time axis area (bottom ~28px)
-    if (y < chartEl.clientHeight - 28) return;
-    e.preventDefault();
-    rangeActive = true;
-    rangeDragged = false;
-    rangeStartX = e.clientX - rect.left;
-    rangeOverlay.style.display = 'block';
-    rangeOverlay.style.left = rangeStartX + 'px';
-    rangeOverlay.style.width = '0px';
-    rangeInfo.innerHTML = '';
-  });
-
-  document.addEventListener('mousemove', e => {
-    if (!rangeActive || !chart || !state.data) return;
-    rangeDragged = true;
-    const rect = chartEl.getBoundingClientRect();
-    const curX = e.clientX - rect.left;
-    const left = Math.min(rangeStartX, curX);
-    const width = Math.abs(curX - rangeStartX);
-    rangeOverlay.style.left = left + 'px';
-    rangeOverlay.style.width = width + 'px';
-
-    const t1 = chart.timeScale().coordinateToTime(rangeStartX);
-    const t2 = chart.timeScale().coordinateToTime(curX);
-    if (t1 != null && t2 != null) {
-      const tStart = Math.min(t1, t2), tEnd = Math.max(t1, t2);
-      const candles = state.data.candles;
-      const sc = _nearestCandle(candles, tStart);
-      const ec = _nearestCandle(candles, tEnd);
-      if (sc && ec) {
-        const pct = ((ec.close - sc.close) / sc.close * 100);
-        const elapsed = Math.abs(tEnd - tStart);
-        const sign = pct >= 0 ? '+' : '';
-        const color = pct >= 0 ? '#22c55e' : '#ef4444';
-        rangeInfo.innerHTML = `<span style="color:${color};font-weight:700">${sign}${pct.toFixed(2)}%</span> &nbsp; <span style="color:#94a3b8">${_fmtElapsed(elapsed)}</span>`;
-      }
-    }
-  });
-
-  document.addEventListener('mouseup', () => {
-    if (rangeActive) {
-      rangeActive = false;
-      if (rangeDragged) setTimeout(() => { rangeDragged = false; }, 50);
-    }
-  });
-
-  chartEl.addEventListener('click', () => {
-    if (!rangeDragged) rangeOverlay.style.display = 'none';
-  });
-
-  function _nearestCandle(candles, time) {
-    let lo = 0, hi = candles.length - 1;
-    while (lo < hi) { const m = (lo + hi) >> 1; candles[m].time < time ? lo = m + 1 : hi = m; }
-    if (lo > 0 && Math.abs(candles[lo-1].time - time) < Math.abs(candles[lo].time - time)) return candles[lo-1];
-    return candles[lo] || null;
-  }
-
-  function _fmtElapsed(sec) {
-    if (state.resolution >= 60) return Math.round(sec / 60) + 'm';
-    return sec + 's';
   }
 
   // ---- Start ----
