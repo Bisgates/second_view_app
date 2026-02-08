@@ -8,6 +8,7 @@ export const state = {
   showMA: true,
   useClean: false,
   spikeFilter: true,
+  showMarketState: false,
   data: null,
   tz: 'Asia/Shanghai',
 };

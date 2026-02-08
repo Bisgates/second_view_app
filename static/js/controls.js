@@ -1,7 +1,7 @@
 import { state } from './state.js';
 import { $ } from './dom.js';
 import { loadChart } from './data.js';
-import { updateIndicatorVisibility } from './chart.js';
+import { updateIndicatorVisibility, updateMarketStateVisibility } from './chart.js';
 import { updateClock } from './clock.js';
 
 function setupBtnGroup(groupId, onChange) {
@@ -51,5 +51,11 @@ export function initControls() {
     state.spikeFilter = !state.spikeFilter;
     this.classList.toggle('active', state.spikeFilter);
     loadChart();
+  });
+
+  $('toggleMarketState').addEventListener('click', function () {
+    state.showMarketState = !state.showMarketState;
+    this.classList.toggle('active', state.showMarketState);
+    updateMarketStateVisibility();
   });
 }

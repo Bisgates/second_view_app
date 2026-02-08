@@ -2,12 +2,14 @@ import { MA_COLORS, MA_PERIODS, INTERACTION_ON, INTERACTION_OFF } from './config
 import { state } from './state.js';
 import { chartEl } from './dom.js';
 import { updateLegend, updateMALegend, updateVolLegend } from './legend.js';
+import { classifyMarketState, buildStateHistogram } from './marketstate.js';
 
 let chart = null;
 let mainSeries = null;
 let volumeSeries = null;
 let maSeries = {};
 let volMaSeries = null;
+let marketStateSeries = null;
 let lastCrosshairBar = null;
 
 export function getChart() {
@@ -32,6 +34,7 @@ export function createChart() {
   volumeSeries = null;
   maSeries = {};
   volMaSeries = null;
+  marketStateSeries = null;
 
   chart = LightweightCharts.createChart(chartEl, {
     layout: {
@@ -89,6 +92,19 @@ export function createChart() {
     },
     handleScale: INTERACTION_ON.handleScale,
     handleScroll: INTERACTION_ON.handleScroll,
+  });
+
+  marketStateSeries = chart.addHistogramSeries({
+    priceFormat: { type: 'volume' },
+    priceScaleId: 'mktstate',
+    lastValueVisible: false,
+    priceLineVisible: false,
+  });
+  chart.priceScale('mktstate').applyOptions({
+    scaleMargins: { top: 0, bottom: 0 },
+    drawTicks: false,
+    borderVisible: false,
+    visible: false,
   });
 
   volumeSeries = chart.addHistogramSeries({
@@ -233,6 +249,12 @@ export function renderChart(data, savedCenter) {
     maSeries[key].applyOptions({ visible: state.showMA });
   });
 
+  if (data.mas && marketStateSeries) {
+    const stateData = classifyMarketState(data.mas);
+    marketStateSeries.setData(buildStateHistogram(stateData));
+    marketStateSeries.applyOptions({ visible: state.showMarketState });
+  }
+
   const markers = [];
 
   if (data.market_open_time && data.candles.length > 0) {
@@ -317,6 +339,12 @@ export function updateIndicatorVisibility() {
     updateMALegend(null);
   } else if (state.data) {
     updateMALegend({ mas: getLastMAValues(state.data) });
+  }
+}
+
+export function updateMarketStateVisibility() {
+  if (marketStateSeries) {
+    marketStateSeries.applyOptions({ visible: state.showMarketState });
   }
 }
 
