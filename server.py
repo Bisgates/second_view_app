@@ -34,6 +34,18 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class NoCacheStaticMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return response
+
+app.add_middleware(NoCacheStaticMiddleware)
+
+
 class ORJSONResponse(Response):
     media_type = "application/json"
 
