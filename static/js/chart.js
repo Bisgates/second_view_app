@@ -1,7 +1,7 @@
 import { MA_COLORS, MA_PERIODS, INTERACTION_ON, INTERACTION_OFF } from './config.js';
 import { state } from './state.js';
 import { chartEl } from './dom.js';
-import { updateLegend, updateMALegend, updateVolLegend } from './legend.js';
+import { updateMALegend, updateVolLegend } from './legend.js';
 import { classifyMarketState, buildStateHistogram } from './marketstate.js';
 
 let chart = null;
@@ -140,7 +140,6 @@ export function createChart() {
   chart.subscribeCrosshairMove(param => {
     if (!param || !param.time || !state.data) {
       lastCrosshairBar = null;
-      updateLegend(null);
       updateMALegend(null);
       updateVolLegend(null);
       return;
@@ -177,7 +176,6 @@ export function createChart() {
       if (v) d.volMa = v.value;
     }
 
-    updateLegend(d);
     updateMALegend(d);
     updateVolLegend(d);
   });

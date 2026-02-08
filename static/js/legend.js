@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { MA_PERIODS, MA_COLORS } from './config.js';
-import { legend, maLegend, volLegend } from './dom.js';
+import { maLegend, volLegend } from './dom.js';
 import { formatAmount } from './format.js';
 
 export function updateMALegend(d) {
@@ -39,8 +39,4 @@ export function updateVolLegend(d) {
     html += ` &nbsp;<span style="color:#ef4444">MA20: ${formatAmount(d.volMa)}</span>`;
   }
   volLegend.innerHTML = html;
-}
-
-export function updateLegend() {
-  legend.innerHTML = '';
 }
