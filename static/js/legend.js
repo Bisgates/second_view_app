@@ -1,14 +1,26 @@
 import { state } from './state.js';
 import { MA_PERIODS, MA_COLORS } from './config.js';
 import { legend, maLegend, volLegend } from './dom.js';
-import { formatTime, formatAmount } from './format.js';
+import { formatAmount } from './format.js';
 
 export function updateMALegend(d) {
   if (!state.showMA) {
     maLegend.innerHTML = '';
     return;
   }
-  let html = '<span style="color:#94a3b8">MA</span> &nbsp;';
+  let html = '';
+  // Price tag before MA values
+  if (d && d.main) {
+    const m = d.main;
+    const price = m.close != null ? m.close : m.value;
+    const isUp = m.close != null ? m.close >= m.open : true;
+    if (price != null) {
+      const bg = isUp ? 'rgba(74,222,128,.9)' : 'rgba(248,113,113,.9)';
+      const fg = isUp ? '#0b1f12' : '#2b0d0d';
+      html += `<span style="background:${bg};color:${fg};font-weight:600;padding:2px 6px;border-radius:6px;font-size:11px">$${price.toFixed(2)}</span> &nbsp;`;
+    }
+  }
+  html += '<span style="color:#94a3b8">MA</span> &nbsp;';
   MA_PERIODS.forEach(p => {
     const key = String(p);
     const color = MA_COLORS[key] || '#94a3b8';
@@ -29,21 +41,6 @@ export function updateVolLegend(d) {
   volLegend.innerHTML = html;
 }
 
-export function updateLegend(d) {
-  if (!d || !d.main) {
-    legend.innerHTML = '';
-    return;
-  }
-  const m = d.main;
-  let html = '';
-  if (d.time) html += `<span class="legend-time">${formatTime(d.time)}</span> &nbsp; `;
-  if (m.open !== undefined) {
-    html += `O <span class="legend-value">${m.open.toFixed(2)}</span> `;
-    html += `H <span class="legend-value">${m.high.toFixed(2)}</span> `;
-    html += `L <span class="legend-value">${m.low.toFixed(2)}</span> `;
-    html += `C <span class="legend-value">${m.close.toFixed(2)}</span>`;
-  } else if (m.value !== undefined) {
-    html += `Price <span class="legend-value">${m.value.toFixed(2)}</span>`;
-  }
-  legend.innerHTML = html;
+export function updateLegend() {
+  legend.innerHTML = '';
 }

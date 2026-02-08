@@ -48,9 +48,9 @@ export function createChart() {
       horzLines: { color: 'rgba(34,42,56,0.55)' },
     },
     crosshair: {
-      mode: LightweightCharts.CrosshairMode.Normal,
+      mode: LightweightCharts.CrosshairMode.Magnet,
       vertLine: { color: 'rgba(96,165,250,0.35)', width: 1, style: 0 },
-      horzLine: { color: 'rgba(96,165,250,0.35)', width: 1, style: 0 },
+      horzLine: { visible: false, labelVisible: false },
     },
     rightPriceScale: {
       borderColor: '#1f2633',
@@ -151,8 +151,8 @@ export function createChart() {
       const v = param.seriesData.get(mainSeries);
       if (v) {
         d.main = v;
-        // store price: candlestick has .close, line has .value
-        lastCrosshairBar = { time: param.time, price: v.close != null ? v.close : v.value };
+        const price = v.close != null ? v.close : v.value;
+        lastCrosshairBar = { time: param.time, price };
       }
     }
 
@@ -223,14 +223,16 @@ export function renderChart(data, savedCenter, savedTimeSpan) {
       wickDownColor: '#ef4444',
       borderVisible: true,
       wickVisible: true,
+      priceLineVisible: false,
+      lastValueVisible: false,
     });
     mainSeries.setData(data.candles);
   } else {
     mainSeries = chart.addLineSeries({
       color: '#3b82f6',
       lineWidth: 1.5,
-      priceLineVisible: true,
-      lastValueVisible: true,
+      priceLineVisible: false,
+      lastValueVisible: false,
     });
     const lineData = data.candles.map(c => ({ time: c.time, value: c.close }));
     mainSeries.setData(lineData);
