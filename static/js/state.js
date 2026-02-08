@@ -11,4 +11,5 @@ export const state = {
   showMarketState: false,
   data: null,
   tz: 'Asia/Shanghai',
+  viewStateCache: {},
 };

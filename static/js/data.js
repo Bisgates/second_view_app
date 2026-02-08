@@ -3,6 +3,10 @@ import { chartEl, loading } from './dom.js';
 import { fetchJSON } from './api.js';
 import { getChart, renderChart } from './chart.js';
 import { updateToolbar, updateStats } from './toolbar.js';
+import { updateTimeline } from './timeline.js';
+
+let prevDate = null;
+let prevSymbol = null;
 
 function getViewState() {
   const chart = getChart();
@@ -37,7 +41,20 @@ function getViewState() {
   }
 
   if (centerTime == null || !Number.isFinite(centerTime)) return null;
-  return { centerTime };
+
+  // Capture zoom level as time span (resolution-independent)
+  let visibleTimeSpan = null;
+  const logicalRange = timeScale.getVisibleLogicalRange();
+  if (logicalRange && Number.isFinite(logicalRange.from) && Number.isFinite(logicalRange.to)) {
+    const dataRes = state.data && Number.isFinite(state.data.resolution)
+      ? state.data.resolution
+      : state.resolution;
+    if (Number.isFinite(dataRes) && dataRes > 0) {
+      visibleTimeSpan = (logicalRange.to - logicalRange.from) * dataRes;
+    }
+  }
+
+  return { centerTime, visibleTimeSpan };
 }
 
 export async function loadChart() {
@@ -45,7 +62,24 @@ export async function loadChart() {
   loading.classList.remove('hidden');
 
   const viewState = getViewState();
-  const savedCenter = viewState ? viewState.centerTime : null;
+  const liveCenter = viewState ? viewState.centerTime : null;
+
+  // Save current view state under previous symbol's key
+  if (prevDate && prevSymbol && viewState) {
+    state.viewStateCache[`${prevDate}/${prevSymbol}`] = viewState;
+  }
+
+  // Determine which center to use
+  const dateOrSymbolChanged = state.currentDate !== prevDate || state.currentSymbol !== prevSymbol;
+  const cacheKey = `${state.currentDate}/${state.currentSymbol}`;
+  const cached = state.viewStateCache[cacheKey];
+  const savedCenter = (dateOrSymbolChanged && cached) ? cached.centerTime : liveCenter;
+  const liveTimeSpan = viewState ? viewState.visibleTimeSpan : null;
+  const savedTimeSpan = (dateOrSymbolChanged && cached) ? cached.visibleTimeSpan : liveTimeSpan;
+
+  // Update previous tracking
+  prevDate = state.currentDate;
+  prevSymbol = state.currentSymbol;
 
   const params = new URLSearchParams({
     session: state.session,
@@ -60,7 +94,8 @@ export async function loadChart() {
   try {
     const data = await fetchJSON(`/api/price/${state.currentDate}/${state.currentSymbol}?${params}`);
     state.data = data;
-    renderChart(data, savedCenter);
+    renderChart(data, savedCenter, savedTimeSpan);
+    updateTimeline();
     updateToolbar(data);
     updateStats(data);
   } catch (e) {

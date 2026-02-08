@@ -14,4 +14,5 @@ export const rangeDivider = $('rangeDivider');
 export const rangePriceMid = $('rangePriceMid');
 export const rangeSubLeft = $('rangeSubLeft');
 export const rangeSubRight = $('rangeSubRight');
+export const timelineCanvas = $('timelineCanvas');
 export const clockEl = $('clock');

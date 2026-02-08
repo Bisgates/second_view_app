@@ -210,7 +210,7 @@ export function applyBarSpacing() {
   });
 }
 
-export function renderChart(data, savedCenter) {
+export function renderChart(data, savedCenter, savedTimeSpan) {
   createChart();
 
   if (state.chartType === 'candle') {
@@ -301,17 +301,25 @@ export function renderChart(data, savedCenter) {
   applyBarSpacing();
 
   const centerLogical = timeToLogical(data, savedCenter);
-  const logicalRange = chart.timeScale().getVisibleLogicalRange();
-  if (Number.isFinite(centerLogical) && logicalRange && Number.isFinite(logicalRange.from) && Number.isFinite(logicalRange.to)) {
-    const halfSpan = (logicalRange.to - logicalRange.from) / 2;
-    if (Number.isFinite(halfSpan) && halfSpan > 0) {
-      chart.timeScale().setVisibleLogicalRange({
-        from: centerLogical - halfSpan,
-        to: centerLogical + halfSpan,
-      });
-    } else {
-      chart.timeScale().fitContent();
+  const resolution = Number.isFinite(data.resolution) ? data.resolution : state.resolution;
+
+  // Compute half-span: prefer saved time span (converted to logical), fall back to current range
+  let halfSpan = null;
+  if (Number.isFinite(savedTimeSpan) && savedTimeSpan > 0 && Number.isFinite(resolution) && resolution > 0) {
+    halfSpan = savedTimeSpan / (2 * resolution);
+  }
+  if (halfSpan == null || !Number.isFinite(halfSpan) || halfSpan <= 0) {
+    const logicalRange = chart.timeScale().getVisibleLogicalRange();
+    if (logicalRange && Number.isFinite(logicalRange.from) && Number.isFinite(logicalRange.to)) {
+      halfSpan = (logicalRange.to - logicalRange.from) / 2;
     }
+  }
+
+  if (Number.isFinite(centerLogical) && Number.isFinite(halfSpan) && halfSpan > 0) {
+    chart.timeScale().setVisibleLogicalRange({
+      from: centerLogical - halfSpan,
+      to: centerLogical + halfSpan,
+    });
   } else {
     chart.timeScale().fitContent();
   }
