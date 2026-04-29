@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { MA_PERIODS, MA_COLORS } from './config.js';
+import { MA_COLORS } from './config.js';
 import { maLegend, volLegend } from './dom.js';
 import { formatAmount } from './format.js';
 
@@ -21,7 +21,7 @@ export function updateMALegend(d) {
     }
   }
   html += '<span style="color:#94a3b8">MA</span> &nbsp;';
-  MA_PERIODS.forEach(p => {
+  state.selectedMAPeriods.forEach(p => {
     const key = String(p);
     const color = MA_COLORS[key] || '#94a3b8';
     const val = (d && d.mas && d.mas[key] !== undefined) ? d.mas[key].toFixed(3) : '';

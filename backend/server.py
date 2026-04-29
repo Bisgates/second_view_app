@@ -28,6 +28,8 @@ SYMBOL_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 EVENT_FILE_RE = re.compile(r"^[A-Za-z0-9._-]+\.csv$")
 
 MA_PERIODS = [5, 100, 200]
+MARKET_STATE_MA_PERIODS = {5, 100, 200}
+MAX_MA_PERIOD = 2000
 
 # ET session boundaries (in UTC hours)
 SESSION_BOUNDS = {
@@ -629,6 +631,36 @@ def _compute_ma(values: np.ndarray, times: np.ndarray, period: int) -> list[dict
     return result
 
 
+def _parse_ma_periods(raw: Optional[str]) -> list[int]:
+    if raw is None or not raw.strip():
+        return list(MA_PERIODS)
+
+    result: list[int] = []
+    seen: set[int] = set()
+    for part in raw.split(","):
+        token = part.strip()
+        if not token:
+            continue
+        try:
+            period = int(token)
+        except ValueError as exc:
+            raise HTTPException(400, f"invalid ma_period: {token}") from exc
+        if period < 1 or period > MAX_MA_PERIOD:
+            raise HTTPException(400, f"invalid ma_period: {period}")
+        if period in seen:
+            continue
+        seen.add(period)
+        result.append(period)
+
+    if not result:
+        return list(MA_PERIODS)
+    return sorted(result)
+
+
+def _resolve_calc_ma_periods(requested_periods: list[int]) -> list[int]:
+    return sorted(set(requested_periods) | MARKET_STATE_MA_PERIODS)
+
+
 def _hampel_filter(series: pd.Series, window: int, n_sigma: float = 3.0) -> pd.Series:
     if window <= 0:
         return series
@@ -751,8 +783,11 @@ def api_price(
     use_clean: bool = Query(False),
     spike_filter: Optional[str] = Query(None),
     spike_window: int = Query(3, ge=1, le=21),
+    ma_periods: Optional[str] = Query(None, max_length=200),
 ):
     df = _load_data(date, symbol)
+    requested_ma_periods = _parse_ma_periods(ma_periods)
+    calc_ma_periods = _resolve_calc_ma_periods(requested_ma_periods)
     if df.empty:
         raise HTTPException(404, "no data")
 
@@ -796,7 +831,7 @@ def api_price(
     vwap = _compute_vwap(df_agg)
 
     mas = {}
-    for p in MA_PERIODS:
+    for p in calc_ma_periods:
         mas[str(p)] = _compute_ma(closes, times, p)
 
     amt_values = np.array([v["value"] for v in amount_bars], dtype=float)
@@ -844,6 +879,7 @@ def api_price(
             "symbol": symbol,
             "session": session,
             "resolution": resolution,
+            "selected_ma_periods": requested_ma_periods,
             "candles": candles,
             "volume": amount_bars,
             "vwap": vwap,

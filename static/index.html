@@ -62,7 +62,19 @@
         <button class="btn" data-val="afterhours">Ext</button>
       </div>
       <div class="toolbar-sep"></div>
-      <button class="toggle-btn active" id="toggleMA">MA</button>
+      <div class="ma-control" id="maControl">
+        <button class="toggle-btn active" id="toggleMA">MA</button>
+        <button class="toggle-btn ma-settings-btn" id="toggleMASettings" type="button" aria-label="MA 设置" aria-haspopup="true" aria-expanded="false">▾</button>
+        <div class="ma-popover hidden" id="maPopover">
+          <div class="ma-popover-title">Moving Averages</div>
+          <div class="ma-popover-list" id="maPeriodList"></div>
+          <div class="ma-popover-actions">
+            <button class="btn" id="maResetDefaults" type="button">默认</button>
+            <button class="btn" id="maSelectAll" type="button">常用全选</button>
+            <button class="btn" id="maClearAll" type="button">清空</button>
+          </div>
+        </div>
+      </div>
       <button class="toggle-btn active" id="toggleFilter">Hampel</button>
       <button class="toggle-btn" id="toggleMarketState">趋势</button>
     </div>

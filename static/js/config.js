@@ -1,6 +1,13 @@
-export const MA_PERIODS = [5, 100, 200];
+export const DEFAULT_MA_PERIODS = [5, 100, 200];
+export const AVAILABLE_MA_PERIODS = [5, 10, 15, 20, 30, 60, 100, 200];
+export const MARKET_STATE_MA_PERIODS = [5, 100, 200];
 export const MA_COLORS = {
   '5': '#22c55e',
+  '10': '#22d3ee',
+  '15': '#fbbf24',
+  '20': '#60a5fa',
+  '30': '#fb7185',
+  '60': '#94a3b8',
   '100': '#f97316',
   '200': '#a855f7',
 };

@@ -102,6 +102,7 @@ export async function loadChart() {
     session: state.session,
     resolution: state.resolution,
     use_clean: state.useClean,
+    ma_periods: state.selectedMAPeriods.join(','),
   });
   if (state.spikeFilter) {
     params.set('spike_filter', 'hampel');

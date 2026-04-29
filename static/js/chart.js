@@ -1,4 +1,4 @@
-import { MA_COLORS, MA_PERIODS, INTERACTION_ON, INTERACTION_OFF } from './config.js';
+import { MA_COLORS, INTERACTION_ON, INTERACTION_OFF } from './config.js';
 import { state } from './state.js';
 import { chartEl } from './dom.js';
 import { updateMALegend, updateVolLegend } from './legend.js';
@@ -24,6 +24,24 @@ export function getCrosshairBar() {
 export function setChartInteraction(enabled) {
   if (!chart) return;
   chart.applyOptions(enabled ? INTERACTION_ON : INTERACTION_OFF);
+}
+
+function ensureMASeries(period) {
+  const key = String(period);
+  if (maSeries[key]) return maSeries[key];
+  maSeries[key] = chart.addLineSeries({
+    color: MA_COLORS[key] || '#94a3b8',
+    lineWidth: 1,
+    priceLineVisible: false,
+    lastValueVisible: false,
+    crosshairMarkerVisible: false,
+  });
+  return maSeries[key];
+}
+
+function getVisibleMAPeriodsFromData(data) {
+  const keys = data && data.mas ? Object.keys(data.mas).map(Number).filter(Number.isFinite) : [];
+  return [...new Set(keys)].sort((a, b) => a - b);
 }
 
 export function createChart() {
@@ -133,17 +151,6 @@ export function createChart() {
     crosshairMarkerVisible: false,
   });
 
-  MA_PERIODS.forEach(p => {
-    const key = String(p);
-    maSeries[key] = chart.addLineSeries({
-      color: MA_COLORS[key] || '#94a3b8',
-      lineWidth: 1,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: false,
-    });
-  });
-
   chart.subscribeCrosshairMove(param => {
     if (!param || !param.time || !state.data) {
       lastCrosshairBar = null;
@@ -169,7 +176,7 @@ export function createChart() {
 
     d.mas = {};
     if (state.showMA) {
-      MA_PERIODS.forEach(p => {
+      state.selectedMAPeriods.forEach(p => {
         const key = String(p);
         if (maSeries[key]) {
           const v = param.seriesData.get(maSeries[key]);
@@ -206,7 +213,6 @@ export function applyBarSpacing() {
   } else {
     minSpacing = 2.2;
   }
-  // Default barSpacing = minBarSpacing so chart starts at maximum zoom-out
   chart.timeScale().applyOptions({
     barSpacing: minSpacing,
     minBarSpacing: minSpacing,
@@ -247,11 +253,12 @@ export function renderChart(data, savedCenter, savedTimeSpan) {
     volMaSeries.setData(data.volume_ma);
   }
 
-  MA_PERIODS.forEach(p => {
-    const key = String(p);
+  getVisibleMAPeriodsFromData(data).forEach(period => {
+    const key = String(period);
+    const series = ensureMASeries(period);
     const maData = (data.mas && data.mas[key]) ? data.mas[key] : [];
-    maSeries[key].setData(maData);
-    maSeries[key].applyOptions({ visible: state.showMA });
+    series.setData(maData);
+    series.applyOptions({ visible: state.showMA && state.selectedMAPeriods.includes(period) });
   });
 
   if (data.mas && marketStateSeries) {
@@ -366,18 +373,15 @@ export function renderChart(data, savedCenter, savedTimeSpan) {
     (state.activeEvent.anchor_marker_date_et || state.activeEvent.event_date_et) === data.date
   ) ? timeToLogical(data, Number(state.activeEvent.anchor_marker_epoch || state.activeEvent.event_epoch)) : null;
 
-  // Compute max zoom-out half-span from chart width and minBarSpacing
   const tsOpts = chart.timeScale().options();
   const minBS = tsOpts.minBarSpacing || 2;
   const maxZoomOutBars = chartEl.clientWidth > 0 ? chartEl.clientWidth / minBS : 600;
   const maxZoomOutHalfSpan = maxZoomOutBars / 2;
 
-  // Compute half-span: prefer saved time span (converted to logical), fall back to max zoom-out
   let halfSpan = null;
   if (Number.isFinite(savedTimeSpan) && savedTimeSpan > 0 && Number.isFinite(resolution) && resolution > 0) {
     halfSpan = savedTimeSpan / (2 * resolution);
   }
-  // Ensure at least max zoom-out span
   if (halfSpan == null || !Number.isFinite(halfSpan) || halfSpan <= 0) {
     halfSpan = maxZoomOutHalfSpan;
   } else if (halfSpan < maxZoomOutHalfSpan) {
@@ -397,7 +401,6 @@ export function renderChart(data, savedCenter, savedTimeSpan) {
       to: centerLogical + halfSpan,
     });
   } else {
-    // Fallback: show last N bars at max zoom-out
     const totalBars = data.candles ? data.candles.length : 0;
     chart.timeScale().setVisibleLogicalRange({
       from: totalBars - maxZoomOutBars,
@@ -409,7 +412,7 @@ export function renderChart(data, savedCenter, savedTimeSpan) {
 export function getLastMAValues(data) {
   const vals = {};
   if (!data.mas) return vals;
-  MA_PERIODS.forEach(p => {
+  state.selectedMAPeriods.forEach(p => {
     const key = String(p);
     const arr = data.mas[key];
     if (arr && arr.length > 0) {
@@ -420,9 +423,9 @@ export function getLastMAValues(data) {
 }
 
 export function updateIndicatorVisibility() {
-  MA_PERIODS.forEach(p => {
-    const key = String(p);
-    if (maSeries[key]) maSeries[key].applyOptions({ visible: state.showMA });
+  Object.entries(maSeries).forEach(([key, series]) => {
+    const period = Number(key);
+    series.applyOptions({ visible: state.showMA && state.selectedMAPeriods.includes(period) });
   });
   if (!state.showMA) {
     updateMALegend(null);
