@@ -7,6 +7,7 @@ import { initTimeline } from './timeline.js';
 import { updateClock } from './clock.js';
 import { datePicker } from './dom.js';
 import { loadChart } from './data.js';
+import { initEventDetail, renderEventDetail } from './event-detail.js';
 
 async function initApp() {
   updateClock();
@@ -30,7 +31,9 @@ async function initApp() {
     datePicker.addEventListener('change', () => {
       state.currentDate = datePicker.value;
       state.activeEvent = null;
+      state.eventDetailOpen = false;
       refreshEventCards();
+      renderEventDetail();
       if (state.currentSymbol) {
         loadChart();
       }
@@ -48,4 +51,5 @@ async function initApp() {
 initControls();
 initRangeSelection();
 initTimeline();
+initEventDetail();
 initApp();

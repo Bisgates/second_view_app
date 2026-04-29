@@ -4,6 +4,7 @@ export const state = {
   currentEventList: '',
   currentEvents: [],
   activeEvent: null,
+  eventDetailOpen: false,
   currentDate: null,
   currentSymbol: null,
   chartType: 'line',

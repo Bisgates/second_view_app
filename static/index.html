@@ -86,24 +86,54 @@
       <canvas id="timelineCanvas"></canvas>
     </div>
   </div>
-  <div class="stats-panel hidden" id="statsPanel">
-    <div class="stat-section">
-      <div class="stat-title">Price</div>
-      <div id="statPrice"></div>
+
+  <aside class="event-detail-panel hidden" id="eventDetailPanel">
+    <div class="event-detail-header">
+      <div>
+        <div class="event-detail-eyebrow">Event Detail</div>
+        <div class="event-detail-symbol" id="eventDetailSymbol">-</div>
+      </div>
+      <button class="event-detail-close" id="eventDetailClose" type="button" aria-label="关闭详情">×</button>
     </div>
-    <div class="stat-section">
-      <div class="stat-title">Volume</div>
-      <div id="statVolume"></div>
+
+    <div class="event-detail-meta" id="eventDetailMeta">Select an event card to view detail.</div>
+
+    <div class="event-detail-section">
+      <div class="event-detail-title">Summary</div>
+      <div class="event-detail-grid">
+        <div class="detail-item">
+          <div class="detail-label">收益</div>
+          <div class="detail-value" id="eventDetailReturn">—</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">离场方式</div>
+          <div class="detail-value" id="eventDetailExit">—</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">持有时间</div>
+          <div class="detail-value" id="eventDetailHold">—</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">最大浮盈</div>
+          <div class="detail-value" id="eventDetailMfe">—</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">最大回撤</div>
+          <div class="detail-value" id="eventDetailMae">—</div>
+        </div>
+      </div>
     </div>
-    <div class="stat-section">
-      <div class="stat-title">Session</div>
-      <div id="statSession"></div>
+
+    <div class="event-detail-section">
+      <div class="event-detail-title">连续加仓</div>
+      <div class="event-detail-events" id="eventDetailEvents"></div>
     </div>
-    <div class="stat-section">
-      <div class="stat-title">Data</div>
-      <div id="statData"></div>
+
+    <div class="event-detail-section hidden" id="eventDetailFallbackSection">
+      <div class="event-detail-fallback-msg" id="eventDetailFallbackMsg"></div>
+      <pre class="event-detail-raw" id="eventDetailRaw"></pre>
     </div>
-  </div>
+  </aside>
 </div>
 </div>
 

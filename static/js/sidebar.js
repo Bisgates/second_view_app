@@ -3,19 +3,12 @@ import { symbolSearch, searchResults, eventListPicker, eventCards, eventListMeta
 import { loadChart } from './data.js';
 import { fetchJSON } from './api.js';
 import { setGroupValue } from './controls.js';
+import { renderEventDetail, openEventDetail } from './event-detail.js';
 
 let searchTimer = null;
 let highlightIdx = -1;
 let currentResults = [];
 const visualStarKeys = new Set();
-
-function compactEventNotes(notes) {
-  const clean = (notes || '').trim();
-  if (!clean) return '';
-  const parts = clean.split(',').map(part => part.trim()).filter(Boolean);
-  if (parts.length === 0) return clean;
-  return parts.slice(0, 2).join(' · ');
-}
 
 function escapeHTML(text) {
   return String(text || '')
@@ -33,9 +26,11 @@ function getEventVisualKey(event) {
 export function selectSymbol(symbol) {
   state.currentSymbol = symbol;
   state.activeEvent = null;
+  state.eventDetailOpen = false;
   hideSearch();
   symbolSearch.value = symbol;
   renderEventCards();
+  renderEventDetail();
   loadChart();
 }
 
@@ -150,6 +145,8 @@ export async function initEventLists() {
     eventListPicker.addEventListener('change', async () => {
       state.currentEventList = eventListPicker.value;
       state.activeEvent = null;
+      state.eventDetailOpen = false;
+      renderEventDetail();
       await loadEventList(state.currentEventList);
     });
 
@@ -198,8 +195,6 @@ function renderEventCards() {
       card.classList.add('active');
     }
 
-    const compactNotes = compactEventNotes(event.notes);
-    const fullNotes = escapeHTML(event.notes || '');
     const safeSymbol = escapeHTML(event.symbol);
     const safeDate = escapeHTML(event.date);
     const safeTime = escapeHTML(event.time);
@@ -211,7 +206,6 @@ function renderEventCards() {
         <button class="event-star${starred ? ' active' : ''}" type="button" aria-label="临时星标" aria-pressed="${starred ? 'true' : 'false'}" title="临时星标">${starred ? '★' : '☆'}</button>
       </div>
       <div class="event-time">${safeDate} ${safeTime}</div>
-      <div class="event-notes"${fullNotes ? ` title="${fullNotes}"` : ''}>${escapeHTML(compactNotes)}</div>
     `;
     const starEl = card.querySelector('.event-star');
     starEl.addEventListener('click', e => {
@@ -247,5 +241,11 @@ function selectEvent(event) {
   setGroupValue('sessionGroup', 'all');
   setGroupValue('resGroup', '5');
   renderEventCards();
+  if ((event.notes || '').trim()) {
+    openEventDetail();
+  } else {
+    state.eventDetailOpen = false;
+    renderEventDetail();
+  }
   loadChart();
 }
