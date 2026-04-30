@@ -24,11 +24,22 @@ const SESSION_BG = {
   afterhours: 'rgba(167,139,250,0.12)',
 };
 
+function getEasternMinutes(unixTime) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date(unixTime * 1000));
+  const hour = Number(parts.find(p => p.type === 'hour')?.value || 0);
+  const minute = Number(parts.find(p => p.type === 'minute')?.value || 0);
+  return hour * 60 + minute;
+}
+
 function getSession(unixTime) {
-  const d = new Date(unixTime * 1000);
-  const mins = d.getUTCHours() * 60 + d.getUTCMinutes();
-  if (mins >= 540 && mins < 870) return 'premarket';    // 09:00–14:30 UTC
-  if (mins >= 870 && mins < 1260) return 'market';       // 14:30–21:00 UTC
+  const mins = getEasternMinutes(unixTime);
+  if (mins >= 240 && mins < 570) return 'premarket';    // 04:00–09:30 ET
+  if (mins >= 570 && mins < 960) return 'market';       // 09:30–16:00 ET
   return 'afterhours';
 }
 

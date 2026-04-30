@@ -31,11 +31,13 @@ MA_PERIODS = [5, 100, 200]
 MARKET_STATE_MA_PERIODS = {5, 100, 200}
 MAX_MA_PERIOD = 2000
 
-# ET session boundaries (in UTC hours)
+# ET session boundaries. Filtering converts each timestamp to US/Eastern first so
+# daylight saving time is handled by the timezone database instead of fixed UTC
+# offsets.
 SESSION_BOUNDS = {
-    "premarket": (9, 0, 14, 30),  # 04:00–09:30 ET → 09:00–14:30 UTC
-    "market": (14, 30, 21, 0),  # 09:30–16:00 ET → 14:30–21:00 UTC
-    "afterhours": (21, 0, 25, 0),  # 16:00–20:00 ET → 21:00–01:00+1 UTC (25 = next day 01)
+    "premarket": (4, 0, 9, 30),  # 04:00–09:30 ET
+    "market": (9, 30, 16, 0),  # 09:30–16:00 ET
+    "afterhours": (16, 0, 20, 0),  # 16:00–20:00 ET
 }
 
 app = FastAPI(title="second_view", version="2.0.0")
@@ -175,7 +177,7 @@ def _resolve_event_path(name: str) -> Path:
 
 
 def _resolve_event_markers_path(event_csv_path: Path) -> Path:
-    return event_csv_path.parent / "event_markers.json"
+    return event_csv_path.with_name(f"{event_csv_path.stem}_markers.json")
 
 
 def _parse_event_timestamp(
@@ -522,15 +524,11 @@ def _filter_session(df: pd.DataFrame, session: str) -> pd.DataFrame:
     if session not in SESSION_BOUNDS:
         raise HTTPException(400, f"invalid session: {session}")
     h1, m1, h2, m2 = SESSION_BOUNDS[session]
-    hour = df["bob"].dt.hour
-    minute = df["bob"].dt.minute
-    t = hour * 60 + minute
+    bob_et = df["bob"].dt.tz_convert("US/Eastern")
+    t = bob_et.dt.hour * 60 + bob_et.dt.minute
     start = h1 * 60 + m1
     end = h2 * 60 + m2
-    if end > 24 * 60:
-        mask = (t >= start) | (t < end - 24 * 60)
-    else:
-        mask = (t >= start) & (t < end)
+    mask = (t >= start) & (t < end)
     return df[mask].copy()
 
 
@@ -703,6 +701,18 @@ def _build_volume_bars(times: np.ndarray, opens: np.ndarray, closes: np.ndarray,
     return result
 
 
+def _session_boundary_epoch(date: str, hour: int, minute: int) -> int:
+    ts = pd.Timestamp(date, tz="US/Eastern") + pd.Timedelta(hours=hour, minutes=minute)
+    return int(ts.tz_convert("UTC").timestamp())
+
+
+def _first_time_at_or_after(times: np.ndarray, target_time: int) -> Optional[int]:
+    idx = int(np.searchsorted(times, target_time, side="left"))
+    if idx >= len(times):
+        return None
+    return int(times[idx])
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -860,18 +870,10 @@ def api_price(
         "low_time": int(times[low_idx]),
     }
 
-    market_open_time = None
-    for t in times:
-        ts = pd.Timestamp(int(t), unit="s", tz="UTC")
-        if ts.hour == 14 and ts.minute == 30:
-            market_open_time = int(t)
-            break
-        elif ts.hour == 14 and ts.minute > 30:
-            market_open_time = int(t)
-            break
-        elif ts.hour > 14 and market_open_time is None:
-            market_open_time = int(t)
-            break
+    market_open_target = _session_boundary_epoch(date, 9, 30)
+    market_close_target = _session_boundary_epoch(date, 16, 0)
+    market_open_time = _first_time_at_or_after(times, market_open_target)
+    market_close_time = _first_time_at_or_after(times, market_close_target)
 
     return ORJSONResponse(
         {
@@ -887,6 +889,7 @@ def api_price(
             "volume_ma": amount_ma,
             "stats": stats,
             "market_open_time": market_open_time,
+            "market_close_time": market_close_time,
         }
     )
 

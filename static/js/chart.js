@@ -282,6 +282,19 @@ export function renderChart(data, savedCenter, savedTimeSpan) {
     }
   }
 
+  if (data.market_close_time && data.candles.length > 0) {
+    const markerCandle = data.candles.find(c => c.time >= data.market_close_time);
+    if (markerCandle) {
+      markers.push({
+        time: markerCandle.time,
+        position: 'aboveBar',
+        color: '#f59e0b',
+        shape: 'arrowDown',
+        text: '16:00',
+      });
+    }
+  }
+
   if (data.stats && data.stats.high_time) {
     markers.push({
       time: data.stats.high_time,
